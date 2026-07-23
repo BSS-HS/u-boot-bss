@@ -893,6 +893,7 @@ dtb-$(CONFIG_ARCH_IMX8M) += \
 	imx8mn-var-som-symphony.dtb \
 	imx8mq-mnt-reform2.dtb \
 	imx8mq-phanbell.dtb \
+	imx8mp-bss-pdm600.dtb \
 	imx8mp-data-modul-edm-sbc.dtb \
 	imx8mp-dhcom-som-overlay-rev100.dtbo \
 	imx8mp-dhcom-som-overlay-eth1xfast.dtbo \

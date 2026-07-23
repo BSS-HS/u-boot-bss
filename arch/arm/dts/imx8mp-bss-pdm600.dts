@@ -1,0 +1,299 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * Copyright (C) 2026 BSS
+ *
+ * PDM600 - custom carrier board for the PHYTEC phyCORE-i.MX8MP SOM.
+ *
+ * This is a local, BSS-internal board and is intentionally NOT part of
+ * dts/upstream (which mirrors the Linux kernel devicetree sources) - see
+ * imx8mp-bss-pdm600-u-boot.dtsi for the u-boot-only bits (bootph-pre-ram
+ * markers etc.).
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include "imx8mp-phycore-som.dtsi"
+
+/ {
+	model = "BSS PDM600 (PHYTEC phyCORE-i.MX8MP)";
+	compatible = "bss,imx8mp-pdm600", "phytec,imx8mp-phycore-som", "fsl,imx8mp";
+
+	chosen {
+		stdout-path = &uart1;
+	};
+
+	reg_usb1_vbus: regulator-usb1-vbus {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usb1_vbus>;
+		gpio = <&gpio1 12 GPIO_ACTIVE_LOW>;
+		regulator-max-microvolt = <5000000>;
+		regulator-min-microvolt = <5000000>;
+		regulator-name = "usb1_host_vbus";
+	};
+
+	reg_usdhc2_vmmc: regulator-usdhc2 {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_reg_usdhc2_vmmc>;
+		regulator-name = "VSD_3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio2 19 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		startup-delay-us = <100>;
+		off-on-delay-us = <12000>;
+	};
+
+	/*
+	 * Board/carrier-card revision straps, read out by u-boot via the
+	 * pcf8575 GPIO expanders below and patched into the devicetree at
+	 * boot time as *_hardware_revision properties (see
+	 * board_late_init() / ft_board_setup() in
+	 * board/bss/imx8mp_pdm600/imx8mp-pdm600.c).
+	 */
+	base-revision-gpios = <&gpio_expander_base 0 GPIO_ACTIVE_HIGH>,
+			      <&gpio_expander_base 1 GPIO_ACTIVE_HIGH>,
+			      <&gpio_expander_base 2 GPIO_ACTIVE_HIGH>,
+			      <&gpio_expander_base 3 GPIO_ACTIVE_HIGH>,
+			      <&gpio_expander_base 4 GPIO_ACTIVE_HIGH>;
+
+	io-card-revision-gpios = <&gpio_expander_io 0 GPIO_ACTIVE_HIGH>,
+				 <&gpio_expander_io 1 GPIO_ACTIVE_HIGH>,
+				 <&gpio_expander_io 2 GPIO_ACTIVE_HIGH>,
+				 <&gpio_expander_io 3 GPIO_ACTIVE_HIGH>,
+				 <&gpio_expander_io 4 GPIO_ACTIVE_HIGH>;
+
+	power-card-revision-gpios = <&gpio_expander_power 0 GPIO_ACTIVE_HIGH>,
+				    <&gpio_expander_power 1 GPIO_ACTIVE_HIGH>,
+				    <&gpio_expander_power 2 GPIO_ACTIVE_HIGH>,
+				    <&gpio_expander_power 3 GPIO_ACTIVE_HIGH>,
+				    <&gpio_expander_power 4 GPIO_ACTIVE_HIGH>;
+};
+
+/* Debug console */
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart1>;
+	status = "okay";
+};
+
+/* SD-Card, identical wiring to the PHYTEC phyBOARD-Pollux reference design */
+&usdhc2 {
+	assigned-clocks = <&clk IMX8MP_CLK_USDHC2>;
+	assigned-clock-rates = <200000000>;
+	pinctrl-names = "default", "state_100mhz", "state_200mhz";
+	pinctrl-0 = <&pinctrl_usdhc2>, <&pinctrl_usdhc2_pins>;
+	pinctrl-1 = <&pinctrl_usdhc2_100mhz>, <&pinctrl_usdhc2_pins>;
+	pinctrl-2 = <&pinctrl_usdhc2_200mhz>, <&pinctrl_usdhc2_pins>;
+	cd-gpios = <&gpio2 12 GPIO_ACTIVE_LOW>;
+	disable-wp;
+	vmmc-supply = <&reg_usdhc2_vmmc>;
+	vqmmc-supply = <&ldo5>;
+	bus-width = <4>;
+	status = "okay";
+};
+
+/* USB Host mode Type-A, identical wiring to the PHYTEC phyBOARD-Pollux reference design */
+&usb3_phy0 {
+	vbus-supply = <&reg_usb1_vbus>;
+	status = "okay";
+};
+
+&usb3_0 {
+	status = "okay";
+};
+
+&usb_dwc3_0 {
+	dr_mode = "host";
+	status = "okay";
+};
+
+&i2c2 {
+	clock-frequency = <400000>;
+	pinctrl-names = "default", "gpio";
+	pinctrl-0 = <&pinctrl_i2c2>;
+	pinctrl-1 = <&pinctrl_i2c2_gpio>;
+	sda-gpios = <&gpio5 17 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	scl-gpios = <&gpio5 16 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	status = "okay";
+
+	gpio_expander_base: pcf8575@20 {
+		compatible = "nxp,pcf8575";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_pcf8575_int>;
+
+		reg = <0x20>;
+
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <0 IRQ_TYPE_EDGE_FALLING>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		gpio-line-names = "BASE_REVISION_0", "BASE_REVISION_1", "BASE_REVISION_2", "BASE_REVISION_3",
+				  "BASE_REVISION_4", "SYNC_MUX_EN", "SYNC_MUX_A0", "SYNC_MUX_A1",
+				  "SERVICE_LONG", "EXP_IO_GPIO9", "EXP_IO_GPIO10", "EXP_IO_GPIO11",
+				  "EXP_IO_GPIO12", "EXP_IO_GPIO13", "EXP_IO_GPIO14", "EXP_IO_GPIO15";
+		status = "okay";
+	};
+
+	gpio_expander_power: pcf8575@21 {
+		compatible = "nxp,pcf8575";
+
+		reg = <0x21>;
+
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <0 IRQ_TYPE_EDGE_FALLING>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		gpio-line-names = "POWER_CARD_REVISION_0", "POWER_CARD_REVISION_1", "POWER_CARD_REVISION_2", "POWER_CARD_REVISION_3",
+				  "POWER_CARD_REVISION_4", "EXP_IO_GPIO5", "EXP_IO_GPIO6", "EXP_IO_GPIO7",
+				  "EN_+20V", "EN_-5V", "EN_+5V", "EXP_IO_GPIO11",
+				  "EXP_IO_GPIO12", "EXP_IO_GPIO13", "EXP_IO_GPIO14", "EXP_IO_GPIO15";
+		status = "okay";
+	};
+
+	gpio_expander_io: pcf8575@22 {
+		compatible = "nxp,pcf8575";
+
+		reg = <0x22>;
+
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <0 IRQ_TYPE_EDGE_FALLING>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		gpio-line-names = "IO_CARD_REVISION_0", "IO_CARD_REVISION_1", "IO_CARD_REVISION_2", "IO_CARD_REVISION_3",
+				  "IO_CARD_REVISION_4", "EXP_IO_GPIO5", "SW2_RST", "SW1_ISP",
+				  "LED3_G", "LED3_R", "LED2_G", "LED2_R",
+				  "LED1_G", "LED1_R", "RELAY_2", "RELAY_1";
+		status = "okay";
+	};
+
+	gpio_expander_mp: pcf8575@23 {
+		compatible = "nxp,pcf8575";
+
+		reg = <0x23>;
+
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <0 IRQ_TYPE_EDGE_FALLING>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		gpio-line-names = "MP_CARD_REVISION_0", "MP_CARD_REVISION_1", "MP_CARD_REVISION_2", "MP_CARD_REVISION_3",
+				  "MP_CARD_REVISION_4", "EXP_IO_GPIO5", "EXP_IO_GPIO6", "EXP_IO_GPIO7",
+				  "EXP_IO_GPIO8", "EXP_IO_GPIO9", "EXP_IO_GPIO10", "EXP_IO_GPIO11",
+				  "EXP_IO_GPIO12", "EXP_IO_GPIO13", "EXP_IO_GPIO14", "EXP_IO_GPIO15";
+		status = "disabled";
+	};
+};
+
+&iomuxc {
+	pinctrl_uart1: uart1grp {
+		fsl,pins = <
+			MX8MP_IOMUXC_UART1_RXD__UART1_DCE_RX	0x140
+			MX8MP_IOMUXC_UART1_TXD__UART1_DCE_TX	0x140
+		>;
+	};
+
+	pinctrl_usb1_vbus: usb1vbusgrp {
+		fsl,pins = <
+			MX8MP_IOMUXC_GPIO1_IO12__GPIO1_IO12	0x10
+		>;
+	};
+
+	pinctrl_reg_usdhc2_vmmc: regusdhc2vmmcgrp {
+		fsl,pins = <
+			MX8MP_IOMUXC_SD2_RESET_B__GPIO2_IO19	0x40
+		>;
+	};
+
+	pinctrl_usdhc2_pins: usdhc2-gpiogrp {
+		fsl,pins = <
+			MX8MP_IOMUXC_SD2_CD_B__GPIO2_IO12	0x40
+		>;
+	};
+
+	pinctrl_usdhc2: usdhc2grp {
+		fsl,pins = <
+			MX8MP_IOMUXC_SD2_CLK__USDHC2_CLK	0x190
+			MX8MP_IOMUXC_SD2_CMD__USDHC2_CMD	0x1d0
+			MX8MP_IOMUXC_SD2_DATA0__USDHC2_DATA0	0x1d0
+			MX8MP_IOMUXC_SD2_DATA1__USDHC2_DATA1	0x1d0
+			MX8MP_IOMUXC_SD2_DATA2__USDHC2_DATA2	0x1d0
+			MX8MP_IOMUXC_SD2_DATA3__USDHC2_DATA3	0x1d0
+			MX8MP_IOMUXC_GPIO1_IO04__USDHC2_VSELECT	0xc0
+		>;
+	};
+
+	pinctrl_usdhc2_100mhz: usdhc2-100mhzgrp {
+		fsl,pins = <
+			MX8MP_IOMUXC_SD2_CLK__USDHC2_CLK	0x194
+			MX8MP_IOMUXC_SD2_CMD__USDHC2_CMD	0x1d4
+			MX8MP_IOMUXC_SD2_DATA0__USDHC2_DATA0	0x1d4
+			MX8MP_IOMUXC_SD2_DATA1__USDHC2_DATA1	0x1d4
+			MX8MP_IOMUXC_SD2_DATA2__USDHC2_DATA2	0x1d4
+			MX8MP_IOMUXC_SD2_DATA3__USDHC2_DATA3	0x1d4
+			MX8MP_IOMUXC_GPIO1_IO04__USDHC2_VSELECT	0xc0
+		>;
+	};
+
+	pinctrl_usdhc2_200mhz: usdhc2-200mhzgrp {
+		fsl,pins = <
+			MX8MP_IOMUXC_SD2_CLK__USDHC2_CLK	0x196
+			MX8MP_IOMUXC_SD2_CMD__USDHC2_CMD	0x1d6
+			MX8MP_IOMUXC_SD2_DATA0__USDHC2_DATA0	0x1d6
+			MX8MP_IOMUXC_SD2_DATA1__USDHC2_DATA1	0x1d6
+			MX8MP_IOMUXC_SD2_DATA2__USDHC2_DATA2	0x1d6
+			MX8MP_IOMUXC_SD2_DATA3__USDHC2_DATA3	0x1d6
+			MX8MP_IOMUXC_GPIO1_IO04__USDHC2_VSELECT	0xc0
+		>;
+	};
+
+	pinctrl_i2c2: i2c2grp {
+		fsl,pins = <
+			MX8MP_IOMUXC_I2C2_SCL__I2C2_SCL		0x400001c2
+			MX8MP_IOMUXC_I2C2_SDA__I2C2_SDA		0x400001c2
+		>;
+	};
+
+	pinctrl_i2c2_gpio: i2c2gpiogrp {
+		fsl,pins = <
+			MX8MP_IOMUXC_I2C2_SCL__GPIO5_IO16	0x1e2
+			MX8MP_IOMUXC_I2C2_SDA__GPIO5_IO17	0x1e2
+		>;
+	};
+
+	/*
+	 * FIXME: GPIO1_IO00 shared nINT line of the four board/carrier-card
+	 * revision pcf8575 GPIO expanders. Pad-ctrl value (0x1C0, pull-up
+	 * enabled) copied from an analogous active-low interrupt-input pin
+	 * used elsewhere for this SOM (PHYTEC phyBOARD-Pollux reference
+	 * design's RTC IRQ pin) - not verified against the PDM600 schematic.
+	 */
+	pinctrl_pcf8575_int: pcf8575intgrp {
+		fsl,pins = <
+			MX8MP_IOMUXC_GPIO1_IO00__GPIO1_IO00	0x1C0
+		>;
+	};
+};
+
+&gpio1 {
+	/* Preserve the SOM's own line names (X_PMIC_WDOG_B on pin 2). */
+	gpio-line-names = "PCF8575_nINT", "", "X_PMIC_WDOG_B", "",
+		"PMIC_SD_VSEL", "", "", "", "", "",
+		"", "", "USB1_OTG_PWR";
+};
+
+&gpio2 {
+	gpio-line-names = "", "", "", "",
+		"", "", "", "", "", "",
+		"", "", "X_SD2_CD_B", "", "", "",
+		"", "", "", "SD2_RESET_B";
+};
