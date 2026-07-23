@@ -61,6 +61,13 @@ static u32 read_revision_gpios(const char *gpio_list_name)
 		return 0;
 	}
 
+	if (count != ARRAY_SIZE(gpios)) {
+		printf("%s: only got %d/%zu gpios for %s, assuming revision 0\n",
+		       __func__, count, ARRAY_SIZE(gpios), gpio_list_name);
+		gpio_free_list_nodev(gpios, count);
+		return 0;
+	}
+
 	ret = dm_gpio_get_values_as_int(gpios, count);
 	gpio_free_list_nodev(gpios, count);
 	if (ret < 0) {
