@@ -1,12 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2026 BSS
- *
- * Uses the PHYTEC phyCORE-i.MX8MP SOM. RAM training (spl.c,
- * lpddr4_timing.c) and SOM/EEPROM detection (imx8m_som_detection.c) are
- * SOM-level, not carrier-board-specific, and are reused directly from
- * board/phytec/phycore_imx8mp/ and board/phytec/common/ (see Makefile) -
- * no need to duplicate them here.
+ * Copyright (C) 2026 BSS Hochspannungstechnik GmbH
  */
 
 #include <asm/arch/sys_proto.h>

@@ -1,57 +1,21 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2026 BSS
+ * Copyright (C) 2026 BSS Hochspannungstechnik GmbH
  *
- * PDM600 - custom carrier board for the PHYTEC phyCORE-i.MX8MP SOM.
+ * PDM-600 - custom carrier board for the PHYTEC phyCORE-i.MX8MP SOM.
  *
- * This is a local, BSS-internal board and is intentionally NOT part of
- * dts/upstream (which mirrors the Linux kernel devicetree sources) - see
- * imx8mp-bss-pdm600-u-boot.dtsi for the u-boot-only bits (bootph-pre-ram
- * markers etc.).
  */
+
+ /dts-v1/;
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include "imx8mp-phycore-som.dtsi"
 
 / {
-	model = "BSS PDM600 (PHYTEC phyCORE-i.MX8MP)";
+	model = "BSS PDM-600 (PHYTEC phyCORE-i.MX8MP)";
 	compatible = "bss,imx8mp-pdm600", "phytec,imx8mp-phycore-som", "fsl,imx8mp";
 
-	chosen {
-		stdout-path = &uart1;
-	};
-
-	reg_usb1_vbus: regulator-usb1-vbus {
-		compatible = "regulator-fixed";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_usb1_vbus>;
-		gpio = <&gpio1 12 GPIO_ACTIVE_LOW>;
-		regulator-max-microvolt = <5000000>;
-		regulator-min-microvolt = <5000000>;
-		regulator-name = "usb1_host_vbus";
-	};
-
-	reg_usdhc2_vmmc: regulator-usdhc2 {
-		compatible = "regulator-fixed";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_reg_usdhc2_vmmc>;
-		regulator-name = "VSD_3V3";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		gpio = <&gpio2 19 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
-		startup-delay-us = <100>;
-		off-on-delay-us = <12000>;
-	};
-
-	/*
-	 * Board/carrier-card revision straps, read out by u-boot via the
-	 * pcf8575 GPIO expanders below and patched into the devicetree at
-	 * boot time as *_hardware_revision properties (see
-	 * board_late_init() / ft_board_setup() in
-	 * board/bss/imx8mp_pdm600/imx8mp-pdm600.c).
-	 */
 	base-revision-gpios = <&gpio_expander_base 0 GPIO_ACTIVE_HIGH>,
 			      <&gpio_expander_base 1 GPIO_ACTIVE_HIGH>,
 			      <&gpio_expander_base 2 GPIO_ACTIVE_HIGH>,
@@ -69,6 +33,33 @@
 				    <&gpio_expander_power 2 GPIO_ACTIVE_HIGH>,
 				    <&gpio_expander_power 3 GPIO_ACTIVE_HIGH>,
 				    <&gpio_expander_power 4 GPIO_ACTIVE_HIGH>;
+
+	chosen {
+		stdout-path = &uart1;
+	};
+
+	reg_usb1_vbus: regulator-usb1-vbus {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usb1_vbus>;
+		gpios = <&gpio1 12 GPIO_ACTIVE_LOW>;
+		regulator-max-microvolt = <5000000>;
+		regulator-min-microvolt = <5000000>;
+		regulator-name = "usb1_host_vbus";
+	};
+
+	reg_usdhc2_vmmc: regulator-usdhc2 {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_reg_usdhc2_vmmc>;
+		regulator-name = "VSD_3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpios = <&gpio2 19 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		startup-delay-us = <100>;
+		off-on-delay-us = <12000>;
+	};
 };
 
 /* Debug console */
@@ -78,7 +69,6 @@
 	status = "okay";
 };
 
-/* SD-Card, identical wiring to the PHYTEC phyBOARD-Pollux reference design */
 &usdhc2 {
 	assigned-clocks = <&clk IMX8MP_CLK_USDHC2>;
 	assigned-clock-rates = <200000000>;
@@ -94,7 +84,6 @@
 	status = "okay";
 };
 
-/* USB Host mode Type-A, identical wiring to the PHYTEC phyBOARD-Pollux reference design */
 &usb3_phy0 {
 	vbus-supply = <&reg_usb1_vbus>;
 	status = "okay";
@@ -270,13 +259,6 @@
 		>;
 	};
 
-	/*
-	 * FIXME: GPIO1_IO00 shared nINT line of the four board/carrier-card
-	 * revision pcf8575 GPIO expanders. Pad-ctrl value (0x1C0, pull-up
-	 * enabled) copied from an analogous active-low interrupt-input pin
-	 * used elsewhere for this SOM (PHYTEC phyBOARD-Pollux reference
-	 * design's RTC IRQ pin) - not verified against the PDM600 schematic.
-	 */
 	pinctrl_pcf8575_int: pcf8575intgrp {
 		fsl,pins = <
 			MX8MP_IOMUXC_GPIO1_IO00__GPIO1_IO00	0x1C0
@@ -285,7 +267,6 @@
 };
 
 &gpio1 {
-	/* Preserve the SOM's own line names (X_PMIC_WDOG_B on pin 2). */
 	gpio-line-names = "PCF8575_nINT", "", "X_PMIC_WDOG_B", "",
 		"PMIC_SD_VSEL", "", "", "", "", "",
 		"", "", "USB1_OTG_PWR";
