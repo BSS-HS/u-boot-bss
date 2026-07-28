@@ -249,12 +249,13 @@ static void i2c_imx_stop(struct mxc_i2c_bus *i2c_bus)
 	temp &= ~(I2CR_MSTA | I2CR_MTX);
 	writeb(temp, base + (I2CR << reg_shift));
 	ret = wait_for_sr_state(i2c_bus, ST_BUS_IDLE);
-	if (ret < 0)
+	if (ret < 0) {
 		printf("%s:trigger stop failed\n", __func__);
 		writeb(I2CR_IDIS, base + (I2CR << reg_shift)); // 1. disable controller
         writeb(0, base + (I2SR << reg_shift));         // 2. clear status register
         i2c_idle_bus(i2c_bus);                         // 3. idle bus
         writeb(I2CR_IEN, base + (I2CR << reg_shift));  // 4. Re-enable controller
+	}
 }
 
 /*
