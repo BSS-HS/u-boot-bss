@@ -236,9 +236,14 @@ void i2c_force_reset_slave(void)
 	__attribute__((weak, alias("__i2c_force_reset_slave")));
 
 /*
- * Stop I2C transaction
+ * Stop I2C transaction.
+ *
+ * Returns 0 if the bus is idle afterwards (either the normal STOP condition
+ * completed, or the forced-idle recovery below managed to clear it), or a
+ * negative error code if the bus is still stuck busy even after recovery -
+ * callers must not blindly start a new transaction on the bus in that case.
  */
-static void i2c_imx_stop(struct mxc_i2c_bus *i2c_bus)
+static int i2c_imx_stop(struct mxc_i2c_bus *i2c_bus)
 {
 	int ret;
 	int reg_shift = i2c_bus->driver_data & I2C_QUIRK_FLAG ?
@@ -251,11 +256,18 @@ static void i2c_imx_stop(struct mxc_i2c_bus *i2c_bus)
 	ret = wait_for_sr_state(i2c_bus, ST_BUS_IDLE);
 	if (ret < 0) {
 		printf("%s:trigger stop failed\n", __func__);
-		writeb(I2CR_IDIS, base + (I2CR << reg_shift)); // 1. disable controller
-        writeb(0, base + (I2SR << reg_shift));         // 2. clear status register
-        i2c_idle_bus(i2c_bus);                         // 3. idle bus
-        writeb(I2CR_IEN, base + (I2CR << reg_shift));  // 4. Re-enable controller
+		writeb(I2CR_IDIS, base + (I2CR << reg_shift)); /* 1. disable controller */
+		writeb(0, base + (I2SR << reg_shift));         /* 2. clear status register */
+		ret = i2c_idle_bus(i2c_bus);                   /* 3. idle bus */
+		writeb(I2CR_IEN, base + (I2CR << reg_shift));  /* 4. re-enable controller */
+		if (ret < 0) {
+			printf("%s: bus recovery failed, bus still stuck\n",
+			       __func__);
+			return ret;
+		}
 	}
+
+	return 0;
 }
 
 /*
@@ -499,7 +511,11 @@ static int i2c_init_transfer(struct mxc_i2c_bus *i2c_bus, u8 chip,
 		ret = i2c_init_transfer_(i2c_bus, chip, addr, alen);
 		if (ret >= 0)
 			return 0;
-		i2c_imx_stop(i2c_bus);
+		if (i2c_imx_stop(i2c_bus) < 0) {
+			printf("%s: bus stuck, giving up i2c_regs=0x%lx\n",
+			       __func__, i2c_bus->base);
+			return -EBUSY;
+		}
 		if (ret == -EREMOTEIO)
 			return ret;
 
@@ -582,7 +598,8 @@ static int i2c_read_data(struct mxc_i2c_bus *i2c_bus, uchar chip, uchar *buf,
 			 * switch to TX to avoid this.
 			 */
 			if (last) {
-				i2c_imx_stop(i2c_bus);
+				if (i2c_imx_stop(i2c_bus) < 0)
+					return -EBUSY;
 			} else {
 				/* Final read, no stop, switch back to tx */
 				temp = readb(base + (I2CR << reg_shift));
@@ -610,8 +627,10 @@ static int i2c_read_data(struct mxc_i2c_bus *i2c_bus, uchar chip, uchar *buf,
 	debug("\n");
 
 	/* It is not clear to me that this is necessary */
-	if (last)
-		i2c_imx_stop(i2c_bus);
+	if (last) {
+		if (i2c_imx_stop(i2c_bus) < 0)
+			return -EBUSY;
+	}
 	return 0;
 }
 
@@ -1003,7 +1022,8 @@ static int mxc_i2c_xfer(struct udevice *bus, struct i2c_msg *msg, int nmsgs)
 			ret = tx_byte(i2c_bus, (msg->addr << 1) | msg_is_read);
 			if (ret < 0) {
 				debug("i2c_xfer: [STOP]\n");
-				i2c_imx_stop(i2c_bus);
+				if (i2c_imx_stop(i2c_bus) < 0)
+					ret = -EBUSY;
 				break;
 			}
 			read_mode = msg_is_read;
@@ -1024,7 +1044,8 @@ static int mxc_i2c_xfer(struct udevice *bus, struct i2c_msg *msg, int nmsgs)
 	if (ret)
 		debug("i2c_write: error sending\n");
 
-	i2c_imx_stop(i2c_bus);
+	if (i2c_imx_stop(i2c_bus) < 0 && !ret)
+		ret = -EBUSY;
 
 	return ret;
 }
