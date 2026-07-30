@@ -183,6 +183,23 @@ int board_init(void)
 			zynqmppl.name = strdup(name);
 			fpga_init();
 			fpga_add(fpga_xilinx, &zynqmppl);
+
+			/*
+			 * zu63dr_SE and zu67dr_SE share ID 0x046D7093.
+			 * Register zu63dr_SE as alternate device.
+			 */
+			if (!strcmp(name, "zu67dr_SE")) {
+				xilinx_desc *alt;
+
+				alt = calloc(1, sizeof(*alt));
+				if (!alt) {
+					log_err("Failed to allocate alt FPGA descriptor\n");
+				} else {
+					*alt = zynqmppl;
+					alt->name = "zu63dr_SE";
+					fpga_add(fpga_xilinx, alt);
+				}
+			}
 		}
 	}
 #endif
@@ -628,6 +645,10 @@ enum env_location env_get_location(enum env_operation op, int prio)
 	case QSPI_MODE_32BIT:
 		if (IS_ENABLED(CONFIG_ENV_IS_IN_SPI_FLASH))
 			return ENVL_SPI_FLASH;
+		if (IS_ENABLED(CONFIG_ENV_IS_IN_FAT))
+			return ENVL_FAT;
+		if (IS_ENABLED(CONFIG_ENV_IS_IN_EXT4))
+			return ENVL_EXT4;
 		return ENVL_NOWHERE;
 	case JTAG_MODE:
 	default:

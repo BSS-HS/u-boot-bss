@@ -185,6 +185,11 @@ enum pm_query_id {
 	PM_QID_CLOCK_GET_MAX_DIVISOR = 13,
 };
 
+#define NUM_GROUPS_PER_RESP			6
+#define NA_GROUP				-1
+#define RESERVED_GROUP				-2
+#define MAX_FUNC_NAME_LEN			16
+
 enum pm_pinctrl_config_param {
 	PM_PINCTRL_CONFIG_SLEW_RATE = 0,
 	PM_PINCTRL_CONFIG_BIAS_STATUS = 1,
@@ -520,5 +525,13 @@ typedef int (*smc_call_handler_t)(u32 api_id, u32 arg0, u32 arg1, u32 arg2,
 				  u32 arg3, u32 arg4, u32 arg5, u32 *ret_payload);
 
 extern smc_call_handler_t __data smc_call_handler;
+
+#define PM_MODULE_ID		2
+
+#define PASS_THROUGH_FW_CMD_ID	GENMASK(11, 0)
+#define PLM_MODULE_ID_MASK	GENMASK(15, 8)
+#define API_ID_MASK		GENMASK(7, 0)
+
+#define PM_DEV_OSPI		(0x1822402aU)
 
 #endif /* _ZYNQMP_FIRMWARE_H_ */

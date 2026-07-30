@@ -88,9 +88,8 @@
 #include <config_distro_bootcmd.h>
 
 /* Initial environment variables */
-#define CFG_EXTRA_ENV_SETTINGS		\
+#define EXTRA_ENV_SETTINGS              \
 	"hwconfig=fsl_ddr:bank_intlv=auto\0"	\
-	"fdt_high=0xffffffffffffffff\0"		\
 	"initrd_high=0xffffffffffffffff\0"	\
 	"kernel_addr=0x61000000\0"		\
 	"scriptaddr=0x80000000\0"		\

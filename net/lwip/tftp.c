@@ -31,6 +31,7 @@ struct tftp_ctx {
 	ulong daddr;
 	ulong size;
 	ulong block_count;
+	ulong hash_count;
 	ulong start_time;
 	enum done_state done;
 };
@@ -49,6 +50,8 @@ struct tftp_ctx {
 static int store_block(struct tftp_ctx *ctx, void *src, u16_t len)
 {
 	ulong store_addr = ctx->daddr;
+	ulong tftp_tsize;
+	ulong pos;
 	void *ptr;
 
 	if (CONFIG_IS_ENABLED(LMB)) {
@@ -67,10 +70,21 @@ static int store_block(struct tftp_ctx *ctx, void *src, u16_t len)
 	ctx->daddr += len;
 	ctx->size += len;
 	ctx->block_count++;
-	if (ctx->block_count % 10 == 0) {
-		putc('#');
-		if (ctx->block_count % (65 * 10) == 0)
-			puts("\n\t ");
+
+	tftp_tsize = tftp_client_get_tsize();
+	if (tftp_tsize) {
+		pos = clamp(ctx->size, 0UL, tftp_tsize);
+
+		while (ctx->hash_count < pos * 50 / tftp_tsize) {
+			putc('#');
+			ctx->hash_count++;
+		}
+	} else {
+		if (ctx->block_count % 10 == 0) {
+			putc('#');
+			if (ctx->block_count % (65 * 10) == 0)
+				puts("\n\t ");
+		}
 	}
 
 	return 0;
@@ -84,6 +98,7 @@ static void *tftp_open(const char *fname, const char *mode, u8_t is_write)
 static void tftp_close(void *handle)
 {
 	struct tftp_ctx *ctx = handle;
+	ulong tftp_tsize;
 	ulong elapsed;
 
 	if (ctx->done == FAILURE || ctx->done == ABORTED) {
@@ -91,6 +106,17 @@ static void tftp_close(void *handle)
 		return;
 	}
 	ctx->done = SUCCESS;
+
+	tftp_tsize = tftp_client_get_tsize();
+	if (tftp_tsize) {
+		/* Print hash marks for the last packet received */
+		while (ctx->hash_count < 49) {
+			putc('#');
+			ctx->hash_count++;
+		}
+		puts("  ");
+		print_size(tftp_tsize, "");
+	}
 
 	elapsed = get_timer(ctx->start_time);
 	if (elapsed > 0) {
@@ -176,11 +202,12 @@ static int tftp_loop(struct udevice *udev, ulong addr, char *fname,
 	ctx.done = NOT_DONE;
 	ctx.size = 0;
 	ctx.block_count = 0;
+	ctx.hash_count = 0;
 	ctx.daddr = addr;
 
 	printf("Using %s device\n", udev->name);
 	printf("TFTP from server %s; our IP address is %s\n",
-	       ip4addr_ntoa(&srvip), env_get("ipaddr"));
+	       ipaddr_ntoa(&srvip), env_get("ipaddr"));
 	printf("Filename '%s'.\n", fname);
 	printf("Load address: 0x%lx\n", ctx.daddr);
 	printf("Loading: ");
@@ -234,6 +261,7 @@ static int tftp_loop(struct udevice *udev, ulong addr, char *fname,
 int do_tftpb(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
 	int ret = CMD_RET_SUCCESS;
+	bool started = false;
 	char *arg = NULL;
 	char *words[3] = { };
 	char *fname = NULL;
@@ -338,10 +366,15 @@ int do_tftpb(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 		ret = CMD_RET_FAILURE;
 		goto out;
 	}
+	started = true;
 
 	if (tftp_loop(eth_get_dev(), laddr, fname, srvip, port) < 0)
 		ret = CMD_RET_FAILURE;
+	else
+		image_load_addr = laddr;
 out:
+	if (started)
+		net_lwip_eth_stop();
 	if (arg != net_boot_file_name)
 		free(arg);
 	return ret;

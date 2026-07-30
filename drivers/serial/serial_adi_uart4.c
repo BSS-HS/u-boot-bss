@@ -2,12 +2,10 @@
 /*
  * (C) Copyright 2022 - Analog Devices, Inc.
  *
- * Written and/or maintained by Timesys Corporation
+ * Written by Timesys Corporation
  *
  * Converted to driver model by Nathan Barrett-Morrison
  *
- * Contact: Nathan Barrett-Morrison <nathan.morrison@timesys.com>
- * Contact: Greg Malysa <greg.malysa@timesys.com>
  *
  */
 
@@ -79,8 +77,6 @@
 #define EAWI			BIT(7)
 #define ERXS			BIT(8)
 #define ETXS			BIT(9)
-
-DECLARE_GLOBAL_DATA_PTR;
 
 struct uart4_reg {
 	u32 revid;

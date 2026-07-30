@@ -10,6 +10,7 @@
 #include <malloc.h>
 #include <power-domain.h>
 #include <power-domain-uclass.h>
+#include <dm/device_compat.h>
 #include <dm/device-internal.h>
 
 struct power_domain_priv {
@@ -180,10 +181,19 @@ static int dev_power_domain_ctrl(struct udevice *dev, bool on)
 	struct power_domain pd;
 	int i, count, ret = 0;
 
+	if (!dev_has_ofnode(dev))
+		return 0;
+
 	count = dev_count_phandle_with_args(dev, "power-domains",
 					    "#power-domain-cells", 0);
 	for (i = 0; i < count; i++) {
 		ret = power_domain_get_by_index(dev, &pd, i);
+
+		if (ret == -ENODEV) {
+			dev_warn(dev, "power-domain driver not found\n");
+			return 0;
+		}
+
 		if (ret)
 			return ret;
 		if (on)

@@ -34,22 +34,10 @@ DECLARE_GLOBAL_DATA_PTR;
 
 void bootm_announce_and_cleanup(void)
 {
-	printf("\nStarting kernel ...\n\n");
-
 #ifdef CONFIG_SYS_COREBOOT
 	timestamp_add_now(TS_START_KERNEL);
 #endif
-	bootstage_mark_name(BOOTSTAGE_ID_BOOTM_HANDOFF, "start_kernel");
-#if IS_ENABLED(CONFIG_BOOTSTAGE_REPORT)
-	bootstage_report();
-#endif
-
-	/*
-	 * Call remove function of all devices with a removal flag set.
-	 * This may be useful for last-stage operations, like cancelling
-	 * of DMA operation or releasing device internal buffers.
-	 */
-	dm_remove_devices_active();
+	bootm_final(0);
 }
 
 #if defined(CONFIG_OF_LIBFDT) && !defined(CONFIG_OF_NO_KERNEL)
@@ -103,7 +91,7 @@ static int boot_prep_linux(struct bootm_headers *images)
 		}
 		is_zimage = 1;
 #if defined(CONFIG_FIT)
-	} else if (images->fit_uname_os && is_zimage) {
+	} else if (images->fit_uname_os) {
 		ret = fit_image_get_data(images->fit_hdr_os,
 					 images->fit_noffset_os,
 					 (const void **)&data, &len);

@@ -2,16 +2,14 @@
 /*
  * (C) Copyright 2024 - Analog Devices, Inc.
  *
- * Written and/or maintained by Timesys Corporation
+ * Written by Timesys Corporation
  *
- * Contact: Nathan Barrett-Morrison <nathan.morrison@timesys.com>
- * Contact: Greg Malysa <greg.malysa@timesys.com>
  */
 
 #include <asm/io.h>
 #include <asm/armv8/mmu.h>
-#include <asm/arch-adi/sc5xx/sc5xx.h>
-#include <asm/arch-adi/sc5xx/spl.h>
+#include <asm/arch/sc5xx.h>
+#include <asm/arch/spl.h>
 
 #define REG_TSGENWR0_CNTCR 0x310AE000
 #define REG_PADS0_PCFG0 0x31004604

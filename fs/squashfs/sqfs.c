@@ -178,6 +178,11 @@ static int sqfs_frag_lookup(u32 inode_fragment_index,
 		goto out;
 	}
 
+	if (SQFS_METADATA_SIZE(header) > SQFS_METADATA_BLOCK_SIZE) {
+		ret = -EINVAL;
+		goto out;
+	}
+
 	entries = malloc(SQFS_METADATA_BLOCK_SIZE);
 	if (!entries) {
 		ret = -ENOMEM;
@@ -255,10 +260,14 @@ static char *sqfs_concat_tokens(char **token_list, int token_count)
 {
 	char *result;
 	int i, length = 0, offset = 0;
+	size_t alloc;
 
 	length = sqfs_get_tokens_length(token_list, token_count);
 
-	result = malloc(length + 1);
+	if (__builtin_add_overflow(length, 1, &alloc))
+		return 0;
+
+	result = malloc(alloc);
 	if (!result)
 		return NULL;
 
@@ -1481,13 +1490,11 @@ static int sqfs_read_nest(const char *filename, void *buf, loff_t offset,
 		goto out;
 	}
 
-	/* If the user specifies a length, check its sanity */
-	if (len) {
-		if (len > finfo.size) {
-			ret = -EINVAL;
-			goto out;
-		}
-
+	/*
+	 * For FIT loading, the len is ALIGN, so it may exceed the actual size.
+	 * Let's just read the max.
+	 */
+	if (len && len < finfo.size) {
 		finfo.size = len;
 	} else {
 		len = finfo.size;
@@ -1628,6 +1635,8 @@ static int sqfs_read_nest(const char *filename, void *buf, loff_t offset,
 		memcpy(buf + *actread, &fragment_block[finfo.offset], finfo.size - *actread);
 		*actread = finfo.size;
 	}
+
+	ret = 0;
 
 out:
 	free(fragment);

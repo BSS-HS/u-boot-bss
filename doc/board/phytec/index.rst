@@ -8,9 +8,10 @@ PHYTEC
 
    imx8mp-libra-fpsc
    imx8mm-phygate-tauri-l
-   imx93-phycore
+   imx91-93-phycore
    phycore-am62x
    phycore-am62ax
    phycore-am64x
+   phycore-am68x
    phycore-imx8mm
    phycore-imx8mp

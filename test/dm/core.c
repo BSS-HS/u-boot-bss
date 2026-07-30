@@ -1248,13 +1248,13 @@ static int dm_test_dma_offset(struct unit_test_state *uts)
        node = ofnode_path("/mmio-bus@0");
        ut_assert(ofnode_valid(node));
        ut_assertok(uclass_get_device_by_ofnode(UCLASS_TEST_BUS, node, &dev));
-       ut_asserteq_64(0, dev->dma_offset);
+       ut_asserteq_64(0, dev->dma_cpu - dev->dma_bus);
 
        /* Device behind a bus with dma-ranges */
        node = ofnode_path("/mmio-bus@0/subnode@0");
        ut_assert(ofnode_valid(node));
        ut_assertok(uclass_get_device_by_ofnode(UCLASS_TEST_FDT, node, &dev));
-       ut_asserteq_64(-0x10000000ULL, dev->dma_offset);
+       ut_asserteq_64(-0x10000000ULL, dev->dma_cpu - dev->dma_bus);
 
        /* This one has no dma-ranges */
        node = ofnode_path("/mmio-bus@1");
@@ -1263,7 +1263,7 @@ static int dm_test_dma_offset(struct unit_test_state *uts)
        node = ofnode_path("/mmio-bus@1/subnode@0");
        ut_assert(ofnode_valid(node));
        ut_assertok(uclass_get_device_by_ofnode(UCLASS_TEST_FDT, node, &dev));
-       ut_asserteq_64(0, dev->dma_offset);
+       ut_asserteq_64(0, dev->dma_cpu - dev->dma_bus);
 
        return 0;
 }
@@ -1410,3 +1410,18 @@ static int dm_test_try_first_device(struct unit_test_state *uts)
 	return 0;
 }
 DM_TEST(dm_test_try_first_device, 0);
+
+/* Test that all drivers are iterated when bind returns -ENODEV */
+static int dm_test_multimatch(struct unit_test_state *uts)
+{
+	struct udevice *dev;
+
+	ut_assertok(uclass_find_device_by_name(UCLASS_TEST, "multimatch-test",
+					       &dev));
+	ut_assertnonnull(dev);
+	ut_asserteq_str("test_multimatch_second", dev->driver->name);
+	ut_asserteq(2, dm_testdrv_op_count[DM_TEST_OP_BIND]);
+
+	return 0;
+}
+DM_TEST(dm_test_multimatch, UTF_SCAN_FDT);

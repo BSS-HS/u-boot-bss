@@ -196,14 +196,14 @@ config SYSRESET_SBI
 
 config SYSRESET_SOCFPGA
 	bool "Enable support for Intel SOCFPGA family"
-	depends on ARCH_SOCFPGA && (TARGET_SOCFPGA_GEN5 || TARGET_SOCFPGA_ARRIA10)
+	depends on ARCH_SOCFPGA && (ARCH_SOCFPGA_GEN5 || ARCH_SOCFPGA_ARRIA10)
 	help
 	  This enables the system reset driver support for Intel SOCFPGA SoCs
 	  (Cyclone 5, Arria 5 and Arria 10).
 
 config SYSRESET_SOCFPGA_SOC64
 	bool "Enable support for Intel SOCFPGA SoC64 family (Stratix10/Agilex)"
-	depends on ARCH_SOCFPGA && TARGET_SOCFPGA_SOC64
+	depends on ARCH_SOCFPGA && ARCH_SOCFPGA_SOC64
 	help
 	  This enables the system reset driver support for Intel SOCFPGA
 	  SoC64 SoCs.
@@ -297,6 +297,14 @@ config SYSRESET_QCOM_PSHOLD
 	bool "Support sysreset for Qualcomm SoCs via PSHOLD"
 	help
 	  Add support for the system reboot on Qualcomm SoCs via PSHOLD.
+
+config SYSRESET_QEMU_VIRT_CTRL
+	bool "QEMU Virtual System Controller support"
+	depends on SYSRESET
+	help
+	  Enable support for the QEMU Virtual System Controller.
+	  This device is used in QEMU machines (e.g. m68k virt) to trigger
+	  system reset and poweroff events.
 
 endif
 

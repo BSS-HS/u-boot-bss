@@ -546,7 +546,7 @@ static int label_boot(struct pxe_context *ctx, struct pxe_label *label)
 	char *zboot_argv[] = { "zboot", NULL, "0", NULL, NULL };
 	char *kernel_addr = NULL;
 	char *initrd_addr_str = NULL;
-	char initrd_filesize[10];
+	char initrd_filesize[17];
 	char initrd_str[28];
 	char mac_str[29] = "";
 	char ip_str[68] = "";
@@ -1083,7 +1083,7 @@ static void eol_or_eof(char **c)
  */
 
 /*
- * Parse a string literal and store a pointer it at *dst. String literals
+ * Parse a string literal and store a pointer to it at *dst. String literals
  * terminate at the end of the line.
  */
 static int parse_sliteral(char **c, char **dst)

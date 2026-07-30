@@ -3,6 +3,8 @@ menu "Testing"
 config UNIT_TEST
 	bool "Unit tests"
 	depends on CMDLINE
+	imply CONSOLE_RECORD
+	imply HEXDUMP
 	help
 	  Select this to compile in unit tests for various parts of
 	  U-Boot. Test suites will be subcommands of the "ut" command.
@@ -13,6 +15,7 @@ config SPL_UNIT_TEST
 	bool "Unit tests in SPL"
 	depends on SPL
 	# We need to be able to unbind devices for tests to work
+	select SPL_DM
 	select SPL_DM_DEVICE_REMOVE
 	help
 	  Select this to enable unit tests in SPL. Most test are designed for

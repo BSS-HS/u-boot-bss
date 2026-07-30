@@ -247,41 +247,6 @@ int g_dnl_bind_fixup(struct usb_device_descriptor *dev, const char *name)
 }
 #endif /* CONFIG_USB_GADGET_DOWNLOAD */
 
-static int get_led(struct udevice **dev, char *led_string)
-{
-	const char *led_name;
-	int ret;
-
-	led_name = ofnode_conf_read_str(led_string);
-	if (!led_name) {
-		log_debug("could not find %s config string\n", led_string);
-		return -ENOENT;
-	}
-	ret = led_get_by_label(led_name, dev);
-	if (ret) {
-		log_debug("get=%d\n", ret);
-		return ret;
-	}
-
-	return 0;
-}
-
-static int setup_led(enum led_state_t cmd)
-{
-	struct udevice *dev;
-	int ret;
-
-	if (!CONFIG_IS_ENABLED(LED))
-		return 0;
-
-	ret = get_led(&dev, "u-boot,boot-led");
-	if (ret)
-		return ret;
-
-	ret = led_set_state(dev, cmd);
-	return ret;
-}
-
 static void __maybe_unused led_error_blink(u32 nb_blink)
 {
 	int ret;
@@ -292,9 +257,9 @@ static void __maybe_unused led_error_blink(u32 nb_blink)
 		return;
 
 	if (CONFIG_IS_ENABLED(LED)) {
-		ret = get_led(&led, "u-boot,error-led");
+		ret = led_get_by_label("red:status", &led);
 		if (!ret) {
-			/* make u-boot,error-led blinking */
+			/* make led "red:status" blinking */
 			/* if U32_MAX and 125ms interval, for 17.02 years */
 			for (i = 0; i < 2 * nb_blink; i++) {
 				led_set_state(led, LEDST_TOGGLE);
@@ -361,8 +326,8 @@ static int adc_measurement(ofnode node, int adc_count, int *min_uV, int *max_uV)
 static int board_check_usb_power(void)
 {
 	ofnode node;
-	int max_uV = 0;
-	int min_uV = USB_START_HIGH_THRESHOLD_UV;
+	int max_uV;
+	int min_uV;
 	int adc_count, ret;
 	u32 nb_blink;
 	u8 i;
@@ -393,6 +358,9 @@ static int board_check_usb_power(void)
 
 	/* perform maximum of 2 ADC measurements to detect power supply current */
 	for (i = 0; i < 2; i++) {
+		max_uV = 0;
+		min_uV = USB_START_HIGH_THRESHOLD_UV;
+
 		ret = adc_measurement(node, adc_count, &min_uV, &max_uV);
 		if (ret)
 			return ret;
@@ -418,7 +386,7 @@ static int board_check_usb_power(void)
 	 * If highest and lowest value are either both below
 	 * USB_LOW_THRESHOLD_UV or both above USB_LOW_THRESHOLD_UV, that
 	 * means USB TYPE-C is in unattached mode, this is an issue, make
-	 * u-boot,error-led blinking and stop boot process.
+	 * led "red:status" blinking and stop boot process.
 	 */
 	if ((max_uV > USB_LOW_THRESHOLD_UV &&
 	     min_uV > USB_LOW_THRESHOLD_UV) ||
@@ -672,8 +640,6 @@ int board_init(void)
 	if (IS_ENABLED(CONFIG_ARMV7_NONSEC))
 		sysconf_init();
 
-	setup_led(LEDST_ON);
-
 #if IS_ENABLED(CONFIG_EFI_HAVE_CAPSULE_SUPPORT)
 	efi_guid_t image_type_guid = STM32MP_FIP_IMAGE_GUID;
 
@@ -736,7 +702,7 @@ int board_late_init(void)
 
 void board_quiesce_devices(void)
 {
-	setup_led(LEDST_OFF);
+	led_boot_off();
 }
 
 enum env_location env_get_location(enum env_operation op, int prio)
@@ -871,24 +837,3 @@ static void board_copro_image_process(ulong fw_image, size_t fw_size)
 }
 
 U_BOOT_FIT_LOADABLE_HANDLER(IH_TYPE_COPRO, board_copro_image_process);
-
-#if defined(CONFIG_FWU_MULTI_BANK_UPDATE)
-
-#include <fwu.h>
-
-/**
- * fwu_plat_get_bootidx() - Get the value of the boot index
- * @boot_idx: Boot index value
- *
- * Get the value of the bank(partition) from which the platform
- * has booted. This value is passed to U-Boot from the earlier
- * stage bootloader which loads and boots all the relevant
- * firmware images
- *
- */
-void fwu_plat_get_bootidx(uint *boot_idx)
-{
-	*boot_idx = (readl(TAMP_FWU_BOOT_INFO_REG) >>
-		    TAMP_FWU_BOOT_IDX_OFFSET) & TAMP_FWU_BOOT_IDX_MASK;
-}
-#endif /* CONFIG_FWU_MULTI_BANK_UPDATE */

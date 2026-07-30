@@ -27,20 +27,12 @@ config SPL_FRAMEWORK
 	  supports MMC, NAND and YMODEM and other methods loading of U-Boot
 	  and the Linux Kernel.  If unsure, say Y.
 
-config SPL_FRAMEWORK_BOARD_INIT_F
-	bool "Define a generic function board_init_f"
-	depends on SPL_FRAMEWORK
-	help
-	  Define a generic function board_init_f that:
-	  - initialize the spl (spl_early_init)
-	  - initialize the serial (preloader_console_init)
-	  Unless you want to provide your own board_init_f, you should say Y.
-
 config SPL_SIZE_LIMIT
 	hex "Maximum size of SPL image"
 	default 0x11000 if ARCH_MX6 && !MX6_OCRAM_256KB
 	default 0x31000 if ARCH_MX6 && MX6_OCRAM_256KB
 	default 0x30000 if ARCH_MVEBU && ARMADA_32BIT
+	default 0xb000 if ARCH_MESON && MESON_GX
 	default 0x0
 	help
 	  Specifies the maximum length of the U-Boot SPL image.
@@ -308,7 +300,7 @@ config SPL_LOAD_BLOCK
 	  to struct spl_load_info.
 
 config SPL_BOOTROM_SUPPORT
-	bool "Support returning to the BOOTROM"
+	bool "Support returning to the BOOTROM (from SPL)"
 	select SPL_LOAD_BLOCK if MACH_IMX
 	help
 	  Some platforms (e.g. the Rockchip RK3368) provide support in their
@@ -465,8 +457,7 @@ config SPL_STACK_R_ADDR
 config SPL_STACK_R_MALLOC_SIMPLE_LEN
 	depends on SPL_STACK_R && SPL_SYS_MALLOC_SIMPLE
 	hex "Size of malloc_simple heap after switching to DRAM SPL stack"
-	default 0x400000 if ARCH_K3 && ARM64
-	default 0x200000 if ARCH_K3 && CPU_V7R
+	default 0x400000 if ARCH_K3
 	default 0x100000
 	help
 	  Specify the amount of the stack to use as memory pool for
@@ -490,15 +481,18 @@ config SPL_SYS_MALLOC
 config SPL_HAS_CUSTOM_MALLOC_START
 	bool "For the SPL malloc pool, define a custom starting address"
 	depends on SPL_SYS_MALLOC
+	default y if ARCH_K3 && CPU_V7R
 
 config SPL_CUSTOM_SYS_MALLOC_ADDR
 	hex "SPL malloc addr"
 	depends on SPL_HAS_CUSTOM_MALLOC_START
+	default 0x84000000 if ARCH_K3 && CPU_V7R
 
 config SPL_SYS_MALLOC_SIZE
 	hex "Size of the SPL malloc pool"
 	depends on SPL_SYS_MALLOC
 	default 0x800000 if RISCV
+	default 0x1000000 if ARCH_K3 && CPU_V7R
 	default 0x100000
 
 config SPL_READ_ONLY
@@ -545,7 +539,7 @@ config SPL_SYS_MMCSD_RAW_MODE
 	depends on SPL_DM_MMC || SPL_MMC
 	default y if ARCH_SUNXI || ARCH_DAVINCI || ARCH_UNIPHIER || \
 		     ARCH_MX6 || ARCH_MX7 || \
-		     ARCH_ROCKCHIP || ARCH_MVEBU || TARGET_SOCFPGA_GEN5 || \
+		     ARCH_ROCKCHIP || ARCH_MVEBU || ARCH_SOCFPGA_GEN5 || \
 		     ARCH_AT91 || ARCH_ZYNQ || ARCH_KEYSTONE || OMAP34XX || \
 		     OMAP54XX || AM33XX || AM43XX || \
 		     TARGET_SIFIVE_UNLEASHED || TARGET_SIFIVE_UNMATCHED
@@ -573,6 +567,7 @@ config SYS_MMCSD_RAW_MODE_U_BOOT_USE_PARTITION
 
 config SYS_MMCSD_RAW_MODE_U_BOOT_USE_PARTITION_TYPE
 	bool "MMC raw mode: by partition type"
+	select SPL_LOAD_BLOCK
 	depends on DOS_PARTITION
 	help
 	  Use partition type for specifying U-Boot partition on MMC/SD in
@@ -589,7 +584,7 @@ config SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR
 	default 0x8a if ARCH_MX6 || ARCH_MX7
 	default 0x100 if ARCH_UNIPHIER
 	default 0x0 if ARCH_MVEBU
-	default 0x200 if TARGET_SOCFPGA_GEN5 || ARCH_AT91
+	default 0x200 if ARCH_SOCFPGA_GEN5 || ARCH_AT91
 	default 0x300 if ARCH_ZYNQ || ARCH_KEYSTONE || OMAP34XX || \
 		         OMAP54XX || AM33XX || AM43XX || ARCH_K3
 	default 0x4000 if ARCH_ROCKCHIP
@@ -703,6 +698,13 @@ config SPL_DRIVERS_MISC
 	  option to build the drivers in drivers/misc as part of an SPL
 	  build, for those that support building in SPL (not all drivers do).
 
+config SPL_REMAKE_ELF
+	bool "Recreate an ELF image from raw SPL binary"
+	help
+	  Enable this to recreate an ELF image (spl/u-boot-spl.elf) from the raw
+	  SPL binary (spl/u-boot-spl.bin), which may already have been statically
+	  relocated and may already have a device-tree appended to it.
+
 config SPL_ENV_SUPPORT
 	bool "Support an environment"
 	help
@@ -718,7 +720,7 @@ config SPL_ENV_SUPPORT
 config SPL_SAVEENV
 	bool "Support save environment"
 	depends on SPL_ENV_SUPPORT
-	select SPL_MMC_WRITE if ENV_IS_IN_MMC
+	select SPL_MMC_WRITE if SPL_ENV_IS_IN_MMC
 	help
 	  Enable save environment support in SPL after setenv. By default
 	  the saveenv option is not provided in SPL, but some boards need
@@ -787,6 +789,7 @@ config SPL_FS_LOAD_PAYLOAD_NAME
 	string "File to load for U-Boot from the filesystem"
 	depends on SPL_FS_EXT4 || SPL_FS_FAT || SPL_FS_SQUASHFS || SPL_SEMIHOSTING
 	default "tispl.bin" if SYS_K3_SPL_ATF
+	default "linux.itb" if SPL_LOAD_FIT_OPENSBI_OS_BOOT
 	default "u-boot.itb" if SPL_LOAD_FIT
 	default "linux.itb" if SPL_LOAD_FIT_OPENSBI_OS_BOOT
 	default "u-boot.img"
@@ -1148,7 +1151,7 @@ config SPL_DM_SPI_FLASH
 
 config SPL_NET
 	bool "Support networking"
-	depends on !NET_LWIP
+	depends on NET_LEGACY
 	select SPL_USE_TINY_PRINTF_POINTER_SUPPORT if SPL_USE_TINY_PRINTF
 	help
 	  Enable support for network devices (such as Ethernet) in SPL.
@@ -1156,6 +1159,9 @@ config SPL_NET
 	  from an on-board peripheral. Environment support is required since
 	  the network stack uses a number of environment variables. See also
 	  SPL_ETH.
+
+config SPL_NET_LEGACY
+	def_bool y if SPL_NET
 
 config SPL_NET_VCI_STRING
 	string "BOOTP Vendor Class Identifier string sent by SPL"
@@ -1206,7 +1212,7 @@ config SPL_OS_BOOT
 	depends on ARM || MICROBLAZE || PPC
 	help
 	  Enable booting directly to an OS from SPL.
-	  for more info read doc/README.falcon
+	  for more info read doc/develop/falcon.rst
 
 config SPL_OS_BOOT_SECURE
 	bool "Allow Falcon Mode on secure devices"
@@ -1370,6 +1376,7 @@ config SPL_POWER_DOMAIN
 
 config SPL_RAM_SUPPORT
 	bool
+	select SPL_HAS_LOAD_FIT_ADDRESS if SPL_LOAD_FIT
 
 config SPL_RAM_DEVICE
 	bool "Support booting from preloaded image in RAM"
@@ -1484,7 +1491,6 @@ config SPL_SATA_RAW_U_BOOT_SECTOR
 config SPL_NVME
 	bool "NVM Express device support"
 	depends on SPL_BLK
-	select FS_LOADER
 	select SPL_BLK_FS
 	help
 	  This option enables support for NVM Express devices.
@@ -1606,6 +1612,36 @@ config SPL_THERMAL
 	  temperature sensors to permit warnings, speed throttling or even
 	  automatic power-off when the temperature gets too high or low. Other
 	  devices may be discrete but connected on a suitable bus.
+
+config SPL_UFS_SUPPORT
+	bool "Support loading from UFS"
+	depends on UFS
+	select SPL_LOAD_BLOCK
+	help
+	  Enable support for UFS in SPL. This allows
+	  use of UFS devices such as hard drives and flash drivers for
+	  loading U-Boot.
+
+config SPL_UFS_RAW_U_BOOT_DEVNUM
+	int "SCSI device number of the UFS device to load U-Boot from"
+	depends on SPL_UFS_SUPPORT
+	default 0
+	help
+	  UFS devices are usually configured with multiple LUNs, which present
+	  themselves as sequentially numbered SCSI devices. Usually one would
+	  get a default LUN 0 taking up most of the space on the device, with
+	  a number of smaller LUNs following it. This option controls which of
+	  them the SPL will attempt to load U-Boot from. Note that this is the
+	  SCSI device number, which might differ from the UFS LUN if you have
+	  multiple SCSI devices attached and recognized by the SPL.
+
+config SPL_UFS_RAW_U_BOOT_SECTOR
+	hex "Address on the UFS to load U-Boot from"
+	depends on SPL_UFS_SUPPORT
+	default 0x800 if ARCH_ROCKCHIP
+	help
+	  Address on the block device to load U-Boot from.
+	  Units: UFS sectors (1 sector = 4096 bytes).
 
 config SPL_WATCHDOG
 	bool "Support watchdog drivers"

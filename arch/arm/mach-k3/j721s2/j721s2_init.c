@@ -40,6 +40,15 @@
 #define NB_THREADMAP_BIT1				BIT(1)
 #define NB_THREADMAP_BIT2				BIT(2)
 
+/*
+ * RAT mapping for errata ID: i2437
+ */
+#define RAT_ERRATA_2437_BASE_REGION0		0x40f90000
+#define RAT_ERRATA_2437_IN_ADDR			0xc0000000
+#define RAT_ERRATA_2437_OUT_ADDR_U		0x0000004d
+#define RAT_ERRATA_2437_OUT_ADDR_L		0x21000000
+#define RAT_ERRATA_2437_CTRL			0x80000010
+
 struct fwl_data cbass_hc_cfg0_fwls[] = {
 	{ "PCIE0_CFG", 2577, 7 },
 	{ "EMMC8SS0_CFG", 2579, 4 },
@@ -346,6 +355,36 @@ void board_init_f(ulong dummy)
 		if (ret)
 			printf("AVS init failed: %d\n", ret);
 	}
+
+	if (IS_ENABLED(CONFIG_CPU_V7R)) {
+		/*
+		 * Errata ID i2437: SE Clock-Gating Turning Off Too Early
+		 *
+		 * A hardware bug is present in the C7120 Streaming Engine top level
+		 * clock gating logic that can lead to the C7120 CPU hanging.
+
+		 * Workaround: The DSP_<COREID>_DEBUG_CLKEN_OVERRIDE fields of the
+		 * COMPUTE_CLUSTER_CFG_WRAP_0_CC_CNTRL register (where COREID is the
+		 * name of the specific C7120 core) must be enabled before power-up
+		 * of the C7120 core to override all clock-gating.
+		 */
+
+		/* Setup RAT mapping */
+		debug("Errata i2437: Use RAT for COMPUTE_CLUSTER_CFG_WRAP_0_CC_CNTRL register\n");
+		writel_verify(RAT_ERRATA_2437_IN_ADDR, RAT_ERRATA_2437_BASE_REGION0 + 0x24);
+		writel_verify(RAT_ERRATA_2437_OUT_ADDR_L, RAT_ERRATA_2437_BASE_REGION0 + 0x28);
+		writel_verify(RAT_ERRATA_2437_OUT_ADDR_U, RAT_ERRATA_2437_BASE_REGION0 + 0x2c);
+		writel_verify(RAT_ERRATA_2437_CTRL, RAT_ERRATA_2437_BASE_REGION0 + 0x20);
+
+		/* Enable DSP_X_DEBUG_CLKEN_OVERRIDE for C71x cores */
+		writel_verify(0x300, RAT_ERRATA_2437_IN_ADDR + 0x200);
+
+		/* Clear RAT mapping */
+		writel_verify(0, RAT_ERRATA_2437_BASE_REGION0 + 0x20);
+		writel_verify(0, RAT_ERRATA_2437_BASE_REGION0 + 0x24);
+		writel_verify(0, RAT_ERRATA_2437_BASE_REGION0 + 0x28);
+		writel_verify(0, RAT_ERRATA_2437_BASE_REGION0 + 0x2c);
+	}
 }
 #endif
 
@@ -361,73 +400,7 @@ u32 spl_mmc_boot_mode(struct mmc *mmc, const u32 boot_device)
 	}
 }
 
-static u32 __get_backup_bootmedia(u32 main_devstat)
-{
-	u32 bkup_boot = (main_devstat & MAIN_DEVSTAT_BKUP_BOOTMODE_MASK) >>
-			MAIN_DEVSTAT_BKUP_BOOTMODE_SHIFT;
-
-	switch (bkup_boot) {
-	case BACKUP_BOOT_DEVICE_USB:
-		return BOOT_DEVICE_DFU;
-	case BACKUP_BOOT_DEVICE_UART:
-		return BOOT_DEVICE_UART;
-	case BACKUP_BOOT_DEVICE_ETHERNET:
-		return BOOT_DEVICE_ETHERNET;
-	case BACKUP_BOOT_DEVICE_MMC2:
-	{
-		u32 port = (main_devstat & MAIN_DEVSTAT_BKUP_MMC_PORT_MASK) >>
-			    MAIN_DEVSTAT_BKUP_MMC_PORT_SHIFT;
-		if (port == 0x0)
-			return BOOT_DEVICE_MMC1;
-		return BOOT_DEVICE_MMC2;
-	}
-	case BACKUP_BOOT_DEVICE_SPI:
-		return BOOT_DEVICE_SPI;
-	case BACKUP_BOOT_DEVICE_I2C:
-		return BOOT_DEVICE_I2C;
-	}
-
-	return BOOT_DEVICE_RAM;
-}
-
-static u32 __get_primary_bootmedia(u32 main_devstat, u32 wkup_devstat)
-{
-	u32 bootmode = (wkup_devstat & WKUP_DEVSTAT_PRIMARY_BOOTMODE_MASK) >>
-			WKUP_DEVSTAT_PRIMARY_BOOTMODE_SHIFT;
-
-	bootmode |= (main_devstat & MAIN_DEVSTAT_BOOT_MODE_B_MASK) <<
-			BOOT_MODE_B_SHIFT;
-
-	if (bootmode == BOOT_DEVICE_OSPI || bootmode ==	BOOT_DEVICE_QSPI ||
-	    bootmode == BOOT_DEVICE_XSPI)
-		bootmode = BOOT_DEVICE_SPI;
-
-	if (bootmode == BOOT_DEVICE_MMC2) {
-		u32 port = (main_devstat &
-			    MAIN_DEVSTAT_PRIM_BOOTMODE_MMC_PORT_MASK) >>
-			   MAIN_DEVSTAT_PRIM_BOOTMODE_PORT_SHIFT;
-		if (port == 0x0)
-			bootmode = BOOT_DEVICE_MMC1;
-	}
-
-	return bootmode;
-}
-
 u32 spl_boot_device(void)
 {
-	u32 wkup_devstat = readl(CTRLMMR_WKUP_DEVSTAT);
-	u32 main_devstat;
-
-	if (wkup_devstat & WKUP_DEVSTAT_MCU_ONLY_MASK) {
-		printf("ERROR: MCU only boot is not yet supported\n");
-		return BOOT_DEVICE_RAM;
-	}
-
-	/* MAIN CTRL MMR can only be read if MCU ONLY is 0 */
-	main_devstat = readl(CTRLMMR_MAIN_DEVSTAT);
-
-	if (bootindex == K3_PRIMARY_BOOTMODE)
-		return __get_primary_bootmedia(main_devstat, wkup_devstat);
-	else
-		return __get_backup_bootmedia(main_devstat);
+	return get_boot_device();
 }

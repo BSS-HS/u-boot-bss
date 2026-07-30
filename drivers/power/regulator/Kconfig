@@ -126,6 +126,16 @@ config SPL_DM_REGULATOR_DA9063
 config DM_REGULATOR_PFUZE100
 	bool "Enable Driver Model for REGULATOR PFUZE100"
 	depends on DM_REGULATOR && DM_PMIC_PFUZE100
+	default DM_PMIC_PFUZE100
+	---help---
+	This config enables implementation of driver-model regulator uclass
+	features for REGULATOR PFUZE100. The driver implements get/set api for:
+	value, enable and mode.
+
+config SPL_DM_REGULATOR_PFUZE100
+	bool "Enable Driver Model for REGULATOR PFUZE100 in SPL"
+	depends on SPL_DM_REGULATOR && SPL_DM_PMIC_PFUZE100
+	default SPL_DM_PMIC_PFUZE100
 	---help---
 	This config enables implementation of driver-model regulator uclass
 	features for REGULATOR PFUZE100. The driver implements get/set api for:
@@ -133,20 +143,13 @@ config DM_REGULATOR_PFUZE100
 
 config REGULATOR_PWM
 	bool "Enable driver for PWM regulators"
-	depends on DM_REGULATOR
+	depends on DM_REGULATOR && DM_PWM
 	---help---
 	Enable support for the PWM regulator functions which voltage are
 	controlled by PWM duty ratio. Some of Rockchip board using this kind
 	of regulator. The driver implements get/set api for the various BUCKS.
 	This driver is controlled by a device tree node
 	which includes voltage limits.
-
-config SPL_REGULATOR_PWM
-	bool "Enable Driver for PWM regulators in SPL"
-	depends on SPL_DM_REGULATOR && SPL && SPL_DM_PWM
-	help
-	  This config enables implementation of driver-model regulator uclass
-	  features for PWM regulators in SPL.
 
 config DM_REGULATOR_MAX8907
 	bool "Enable Driver Model for REGULATOR MAX8907"
@@ -198,6 +201,14 @@ config DM_REGULATOR_FAN53555
 	  or switching the mode is not supported by this driver (at
 	  this time).
 
+config SPL_DM_REGULATOR_FAN53555
+	bool "Enable Driver Model for REGULATOR FAN53555 in SPL"
+	depends on SPL_DM_PMIC_FAN53555
+	help
+	  This configuration setting enables the implementation of the
+	  driver-model regulator uclass features for the FAN53555
+	  regulator in SPL.
+
 config DM_REGULATOR_COMMON
 	bool
 	depends on DM_REGULATOR
@@ -235,6 +246,7 @@ config DM_REGULATOR_GPIO
 config DM_REGULATOR_QCOM_RPMH
 	bool "Enable driver model for Qualcomm RPMh regulator"
 	depends on DM_REGULATOR && QCOM_RPMH
+	select DEVRES
 	---help---
 	  Enable support for the Qualcomm RPMh regulator. The driver
 	  implements get/set api for a limited set of regulators used
@@ -242,14 +254,14 @@ config DM_REGULATOR_QCOM_RPMH
 
 config DM_REGULATOR_QCOM_USB_VBUS
 	bool "Enable driver model for Qualcomm USB vbus regulator"
-	depends on DM_REGULATOR
+	depends on DM_REGULATOR && DM_PMIC
 	---help---
 	  Enable support for the Qualcomm USB Vbus regulator. The driver
 	  implements get/set api for the regulator to be used by u-boot.
 
 config SPL_DM_REGULATOR_GPIO
 	bool "Enable Driver Model for GPIO REGULATOR in SPL"
-	depends on DM_REGULATOR_GPIO && SPL_GPIO
+	depends on DM_REGULATOR_GPIO && SPL_DM_GPIO
 	select SPL_DM_REGULATOR_COMMON
 	---help---
 	This config enables implementation of driver-model regulator uclass
@@ -527,3 +539,21 @@ config DM_REGULATOR_CPCAP
 	REGULATOR CPCAP. The driver supports both DC-to-DC Step-Down Switching
 	(SW) Regulators and Low-Dropout Linear (LDO) Regulators	found in CPCAP
 	PMIC and implements get/set api for voltage and state.
+
+config DM_REGULATOR_MT6357
+	bool "Enable driver for MediaTek MT6357 PMIC regulators"
+	depends on DM_REGULATOR && DM_PMIC_MTK_PWRAP
+	help
+	  Say y here to select this option to enable the power regulator of
+	  MediaTek MT6357 PMIC.
+	  This driver supports the control of different power rails of device
+	  through regulator interface.
+
+config DM_REGULATOR_MT6359
+	bool "Enable driver for MediaTek MT6359 PMIC regulators"
+	depends on DM_REGULATOR && DM_PMIC_MTK_PWRAP
+	help
+	  Say y here to select this option to enable the power regulator of
+	  MediaTek MT6359 PMIC.
+	  This driver supports the control of different power rails of device
+	  through regulator interface.

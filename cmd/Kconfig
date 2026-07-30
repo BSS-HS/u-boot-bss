@@ -47,6 +47,14 @@ config HUSH_SELECTABLE
 	default y if HUSH_OLD_PARSER && HUSH_MODERN_PARSER
 endmenu
 
+config CMDLINE_FLUSH_STDIN
+	bool "Enable flushing input before starting cli"
+	help
+	  When this option is enabled the stdin buffer will be flushed before
+	  starting the CLI. This is useful when stdin is changed during boot
+	  (e.g. from nulldev to serial) and junk characters may be pending
+	  in the buffer.
+
 config CMDLINE_EDITING
 	bool "Enable command line editing"
 	default y
@@ -223,6 +231,7 @@ config CMD_LICENSE
 
 config CMD_PMC
 	bool "pmc"
+	depends on ACPI_PMC
 	help
 	  Provides access to the Intel Power-Management Controller (PMC) so
 	  that its state can be examined. This does not currently support
@@ -264,6 +273,21 @@ config CMD_SBI
 	help
 	  Display information about the SBI implementation.
 
+config CMD_SM3SUM
+	bool "sm3sum"
+	select SM3
+	select HASH
+	help
+	  Compute SM3 checksum.
+	  add SM3 hash functionality
+
+config SM3SUM_VERIFY
+	bool "sm3sum -v"
+	depends on CMD_SM3SUM
+	help
+	  Add for the sm3sum command the -v option
+	  to verify data against an SM3 checksum.
+
 config CMD_SMBIOS
 	bool "smbios"
 	depends on SMBIOS
@@ -276,6 +300,7 @@ menu "Boot commands"
 
 config CMD_BOOTD
 	bool "bootd"
+	depends on CMD_BOOTM
 	default y
 	help
 	  Run the command stored in the environment "bootcmd", i.e.
@@ -283,6 +308,7 @@ config CMD_BOOTD
 
 config CMD_BOOTM
 	bool "bootm"
+	depends on LMB
 	default y
 	select LIB_BOOTM
 	help
@@ -361,6 +387,7 @@ config BOOTM_ELF
 
 config CMD_BOOTZ
 	bool "bootz"
+	depends on LMB
 	select LIB_BOOTZ
 	select LIB_BOOTM
 	help
@@ -369,6 +396,7 @@ config CMD_BOOTZ
 config CMD_BOOTI
 	bool "booti"
 	depends on ARM64 || RISCV || SANDBOX
+	depends on LMB
 	default y
 	select LIB_BOOTI
 	select LIB_BOOTM
@@ -384,11 +412,11 @@ config BOOTM_LINUX
 	  or booti or bootz.
 
 config BOOTM_NETBSD
-	bool "Support booting NetBSD (non-EFI) loader images"
+	bool "Support booting NetBSD (legacy, non-EFI) loader images"
 	depends on CMD_BOOTM
-	default y
 	help
-	  Support booting NetBSD via the bootm command.
+	  Support booting NetBSD via the bootm command. This is for NetBSD
+	  images that are neither EFI nor using a device tree.
 
 config BOOTM_OPENRTOS
 	bool "Support booting OPENRTOS / FreeRTOS images"
@@ -605,7 +633,7 @@ config CMD_SPL
 	help
 	  Falcon mode allows booting directly from SPL into an Operating
 	  System such as Linux, thus skipping U-Boot proper. See
-	  doc/README.falcon for full information about how to use this
+	  doc/develop/falcon.rst for full information about how to use this
 	  command.
 
 config CMD_SPL_NAND_OFS
@@ -614,7 +642,7 @@ config CMD_SPL_NAND_OFS
 	default 0x0
 	help
 	  This provides the offset of the command line arguments for Linux
-	  when booting from NAND in Falcon mode.  See doc/README.falcon
+	  when booting from NAND in Falcon mode.  See doc/develop/falcon.rst
 	  for full information about how to use this option (and also see
 	  board/gateworks/gw_ventana/README for an example).
 
@@ -698,6 +726,7 @@ config CMD_GREPENV
 
 config CMD_SAVEENV
 	bool "saveenv"
+	depends on !(SRIO_PCIE_BOOT_SLAVE && ENV_IS_IN_REMOTE)
 	default y
 	help
 	  Save all environment variables into the compiled-in persistent
@@ -924,6 +953,14 @@ config CMD_MEMINFO_MAP
 	  detail about each piece of it.
 
 	  See doc/usage/cmd/meminfo.rst for more information.
+
+config CMD_MEMSIZE
+	bool "memsize"
+	default y if SANDBOX
+	depends on CMD_MEMINFO
+	help
+	  Get RAM via command for use in scripts. Print or assign decimal value
+	  in MiB to environment variable.
 
 config CMD_MEMORY
 	bool "md, mm, nm, mw, cp, cmp, base, loop"
@@ -1366,7 +1403,7 @@ config CMD_I3C
 	  and perform read and write on the connected i3c devices.
 
 config CMD_W1
-	depends on W1
+	depends on W1 && W1_EEPROM
 	default y if W1
 	bool "w1 - Support for Dallas 1-Wire protocol"
 	help
@@ -1385,6 +1422,7 @@ config CMD_LOADM
 
 config CMD_LOADS
 	bool "loads - Load a file over serial in S-Record format"
+	depends on LMB
 	default y
 	help
 	  Load an S-Record file over serial line
@@ -1640,6 +1678,15 @@ config CMD_PART
 	  Read and display information about the partition table on
 	  various media.
 
+config CMD_PART_DUPCHECK
+	bool "part dupcheck"
+	depends on CMD_PART && BLK
+	help
+	  Adds the 'part dupcheck' subcommand, which scans all block devices
+	  and reports any duplicate partition UUIDs (PARTUUIDs) or partition
+	  labels (PARTLABELs). Returns failure if any duplicates are found,
+	  making it suitable for use in boot scripts.
+
 config CMD_PCI
 	bool "pci - Access PCI devices"
 	help
@@ -1664,7 +1711,7 @@ config CMD_PINMUX
 	default y if PINCTRL
 	help
 	  Parse all available pin-controllers and show pins muxing. This
-	  is useful for debug purpoer to check the pin muxing and to know if
+	  is useful for debugging purposes to check the pin muxing and to know if
 	  a pin is configured as a GPIO or as an alternate function.
 
 config CMD_POWEROFF
@@ -1677,6 +1724,12 @@ config CMD_READ
 	help
 	  Provides low-level access to the data in a partition.
 
+config CMD_READ_EDID
+	bool "read_edid - Read display EDID"
+	depends on DISPLAY
+	help
+	  Read and parse edid from connected display device.
+
 config CMD_REMOTEPROC
 	bool "remoteproc"
 	depends on REMOTEPROC
@@ -1686,7 +1739,8 @@ config CMD_REMOTEPROC
 
 config CMD_SATA
 	bool "sata - Access SATA subsystem"
-	select SATA
+	depends on SATA && AHCI
+	default y
 	help
 	  SATA (Serial Advanced Technology Attachment) is a serial bus
 	  standard for connecting to hard drives and other storage devices.
@@ -1900,7 +1954,7 @@ config CMD_XXD
 
 endmenu
 
-if NET || NET_LWIP
+if NET
 
 menuconfig CMD_NET
 	bool "Network commands"
@@ -1908,7 +1962,7 @@ menuconfig CMD_NET
 
 if CMD_NET
 
-if NET
+if NET_LEGACY
 
 config CMD_BOOTP
 	bool "bootp"
@@ -2055,7 +2109,7 @@ config BOOTP_PXE_DHCP_OPTION
 config BOOTP_VCI_STRING
 	string
 	depends on CMD_BOOTP
-	default "U-Boot.armv7" if CPU_V7A || CPU_V7M || CPU_V7R
+	default "U-Boot.armv7" if CPU_V7A || CPU_V7M_V8M || CPU_V7R
 	default "U-Boot.armv8" if ARM64
 	default "U-Boot.arm" if ARM
 	default "U-Boot"
@@ -2094,20 +2148,6 @@ config CMD_RARP
 	bool "rarpboot"
 	help
 	  Boot image via network using RARP/TFTP protocol
-
-config CMD_NFS
-	bool "nfs"
-	help
-	  Boot image via network using NFS protocol.
-
-config NFS_TIMEOUT
-	int "Timeout in milliseconds for NFS mounts"
-	depends on CMD_NFS
-	default 2000
-	help
-	  Timeout in milliseconds used in NFS protocol.  If you encounter
-	  "ERROR: Cannot umount" in nfs command, try longer timeout such as
-	  10000.
 
 config SYS_DISABLE_AUTOLOAD
 	bool "Disable automatically loading files over the network"
@@ -2166,11 +2206,12 @@ config CMD_WOL
 	help
 	  Wait for wake-on-lan Magic Packet
 
-endif  # if NET
+endif  # if NET_LEGACY
 
 config CMD_DHCP
 	bool "dhcp"
 	select PROT_DHCP_LWIP if NET_LWIP
+	select CMD_BOOTP if NET_LEGACY
 	help
 	  Boot image via network using DHCP/TFTP protocol
 
@@ -2203,6 +2244,21 @@ config CMD_MDIO
 	  The MDIO interface is orthogonal to the MII interface and extends
 	  it by adding access to more registers through indirect addressing.
 
+config CMD_NFS
+	bool "nfs"
+	select PROT_UDP_LWIP if NET_LWIP
+	help
+	  Boot image via network using NFS protocol.
+
+config NFS_TIMEOUT
+	int "Timeout in milliseconds for NFS mounts"
+	depends on CMD_NFS
+	default 2000
+	help
+	  Timeout in milliseconds used in NFS protocol.  If you encounter
+	  "ERROR: Cannot umount" in nfs command, try longer timeout such as
+	  10000.
+
 config CMD_PING
 	bool "ping"
 	select PROT_RAW_LWIP if NET_LWIP
@@ -2211,7 +2267,7 @@ config CMD_PING
 
 config CMD_SNTP
 	bool "sntp"
-	select PROT_UDP if NET
+	select PROT_UDP if NET_LEGACY
 	select PROT_UDP_LWIP if NET_LWIP
 	help
 	  Synchronize RTC via network
@@ -2275,13 +2331,13 @@ config WGET_BUILTIN_CACERT_PATH
 config CMD_PXE
 	bool "pxe"
 	select PXE_UTILS
-	imply CMD_TFTPBOOT
+	select CMD_TFTPBOOT
 	help
 	  Boot image via network using PXE protocol
 
 endif  # if CMD_NET
 
-endif # NET || NET_LWIP
+endif # NET
 
 menu "Misc commands"
 
@@ -2912,6 +2968,7 @@ config CMD_FS_UUID
 
 config CMD_JFFS2
 	bool "jffs2 command"
+	depends on !64BIT
 	select FS_JFFS2
 	help
 	  Enables commands to support the JFFS2 (Journalling Flash File System

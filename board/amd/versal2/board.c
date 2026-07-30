@@ -18,14 +18,17 @@
 #include <asm/io.h>
 #include <asm/arch/hardware.h>
 #include <asm/arch/sys_proto.h>
+#include <asm/sections.h>
 #include <dm/device.h>
 #include <dm/uclass.h>
 #include <versalpl.h>
+#include <zynqmp_firmware.h>
 #include "../../xilinx/common/board.h"
 
 #include <linux/bitfield.h>
 #include <debug_uart.h>
 #include <generated/dt.h>
+#include <linux/ioport.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -78,12 +81,13 @@ char *soc_name_decode(void)
 	}
 
 	/*
-	 * --rev. are 6 chars
-	 * max platform name is qemu which is 4 chars
+	 * --rev.-el are 9 chars
+	 * max platform name is emu-mmd which is 7 chars
 	 * platform version number are 1+1
-	 * Plus 1 char for \n
+	 * el is 1 char
+	 * Plus 1 char for NULL byte
 	 */
-	name = calloc(1, strlen(CONFIG_SYS_BOARD) + 13);
+	name = calloc(1, strlen(CONFIG_SYS_BOARD) + 20);
 	if (!name)
 		return NULL;
 
@@ -180,6 +184,23 @@ static u8 versal2_get_bootmode(void)
 	return bootmode;
 }
 
+static u32 versal2_multi_boot(void)
+{
+	u8 bootmode = versal2_get_bootmode();
+	u32 reg = 0;
+
+	/* Mostly workaround for QEMU CI pipeline */
+	if (bootmode == JTAG_MODE)
+		return 0;
+
+	if (IS_ENABLED(CONFIG_ZYNQMP_FIRMWARE) && current_el() != 3)
+		reg = zynqmp_pm_get_pmc_multi_boot_reg();
+	else
+		reg = readl(PMC_MULTI_BOOT_REG);
+
+	return reg & PMC_MULTI_BOOT_MASK;
+}
+
 static int boot_targets_setup(void)
 {
 	u8 bootmode;
@@ -235,6 +256,12 @@ static int boot_targets_setup(void)
 		break;
 	case EMMC_MODE:
 		puts("EMMC_MODE\n");
+		if (uclass_get_device_by_name(UCLASS_MMC,
+					      "mmc@f1050000", &dev)) {
+			debug("SD1 driver for SD1 device is not present\n");
+			break;
+		}
+		debug("mmc1 device found at %p, seq %d\n", dev, dev_seq(dev));
 		mode = "mmc";
 		bootseq = dev_seq(dev);
 		break;
@@ -319,6 +346,7 @@ static int boot_targets_setup(void)
 int board_late_init(void)
 {
 	int ret;
+	u32 multiboot;
 
 	if (!(gd->flags & GD_FLG_ENV_DEFAULT)) {
 		debug("Saved variables - Skipping\n");
@@ -327,6 +355,9 @@ int board_late_init(void)
 
 	if (!IS_ENABLED(CONFIG_ENV_VARS_UBOOT_RUNTIME_CONFIG))
 		return 0;
+
+	multiboot = versal2_multi_boot();
+	env_set_hex("multiboot", multiboot);
 
 	if (IS_ENABLED(CONFIG_DISTRO_DEFAULTS)) {
 		ret = boot_targets_setup();
@@ -339,28 +370,71 @@ int board_late_init(void)
 
 int dram_init_banksize(void)
 {
-	int ret;
-
-	ret = fdtdec_setup_memory_banksize();
-	if (ret)
-		return ret;
-
-	mem_map_fill();
-
+	fill_bd_mem_info();
 	return 0;
 }
 
 int dram_init(void)
 {
-	int ret;
+	struct mm_region bank_info[CONFIG_NR_DRAM_BANKS];
+	ofnode mem = ofnode_null();
+	struct resource res;
+	int ret, i, reg = 0;
+	u32 num_banks, reloc_use = 0;
+	u64 text = (u64)_start;
 
-	if (IS_ENABLED(CONFIG_SYS_MEM_RSVD_FOR_MMU))
-		ret = fdtdec_setup_mem_size_base();
-	else
-		ret = fdtdec_setup_mem_size_base_lowest();
+	gd->ram_base = (unsigned long)~0;
 
-	if (ret)
+	mem = fdtdec_get_next_memory_node(mem);
+	if (!ofnode_valid(mem)) {
+		printf("%s: Missing /memory node\n", __func__);
 		return -EINVAL;
+	}
+
+	debug("%s: Text base = 0x%llx\n", __func__, text);
+
+	for (i = 0; i < CONFIG_NR_DRAM_BANKS; i++) {
+		reloc_use = 0;
+		ret = ofnode_read_resource(mem, reg++, &res);
+		if (ret < 0) {
+			reg = 0;
+			mem = fdtdec_get_next_memory_node(mem);
+			if (!ofnode_valid(mem))
+				break;
+
+			ret = ofnode_read_resource(mem, reg++, &res);
+			if (ret < 0)
+				break;
+		}
+
+		if (ret != 0)
+			return -EINVAL;
+
+		bank_info[i].phys = (phys_addr_t)res.start;
+		bank_info[i].size = (phys_size_t)(res.end - res.start + 1);
+
+		if (bank_info[i].size == 0)
+			break;
+
+		if (text >= bank_info[i].phys &&
+		    text < (bank_info[i].phys + bank_info[i].size)) {
+			gd->ram_base = bank_info[i].phys;
+			gd->ram_size = bank_info[i].size;
+			reloc_use = 1;
+		}
+
+		debug("%s: DRAM Bank #%d: start = 0x%llx, size = 0x%llx %s",
+		      __func__, i, (unsigned long long)bank_info[i].phys,
+		      (unsigned long long)bank_info[i].size,
+		      (reloc_use ? " - USED for RELOCATION\n" : "\n"));
+
+		num_banks++;
+	}
+
+	mem_map_fill(bank_info, num_banks);
+
+	debug("%s: Initial DRAM: start = 0x%lx, size = 0x%lx\n", __func__,
+	      gd->ram_base, (unsigned long)gd->ram_size);
 
 	return 0;
 }

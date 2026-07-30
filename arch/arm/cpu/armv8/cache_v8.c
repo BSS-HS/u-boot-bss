@@ -810,8 +810,10 @@ __weak void mmu_setup(void)
 	el = current_el();
 	set_ttbr_tcr_mair(el, gd->arch.tlb_addr, get_tcr(NULL, NULL),
 			  MEMORY_ATTRIBUTES);
+}
 
-	/* enable the mmu */
+void mmu_enable(void)
+{
 	set_sctlr(get_sctlr() | CR_M);
 }
 
@@ -878,15 +880,17 @@ void flush_dcache_range(unsigned long start, unsigned long stop)
 void dcache_enable(void)
 {
 	/* The data cache is not active unless the mmu is enabled */
-	if (!mmu_status())
+	if (!mmu_status()) {
+		__asm_invalidate_tlb_all();
 		mmu_setup();
+		mmu_enable();
+	}
 
 	/* Set up page tables only once (it is done also by mmu_setup()) */
 	if (!gd->arch.tlb_fillptr)
 		setup_all_pgtables();
 
 	invalidate_dcache_all();
-	__asm_invalidate_tlb_all();
 	set_sctlr(get_sctlr() | CR_C);
 }
 

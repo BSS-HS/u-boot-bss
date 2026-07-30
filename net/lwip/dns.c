@@ -14,7 +14,6 @@
 
 struct dns_cb_arg {
 	ip_addr_t host_ipaddr;
-	const char *var;
 	bool done;
 };
 
@@ -26,31 +25,23 @@ static void do_dns_tmr(void *arg)
 static void dns_cb(const char *name, const ip_addr_t *ipaddr, void *arg)
 {
 	struct dns_cb_arg *dns_cb_arg = arg;
-	char *ipstr = ip4addr_ntoa(ipaddr);
 
 	dns_cb_arg->done = true;
 
-	if (!ipaddr) {
+	if (!ipaddr)
 		printf("DNS: host not found\n");
-		dns_cb_arg->host_ipaddr.addr = 0;
-		return;
-	}
 
-	dns_cb_arg->host_ipaddr.addr = ipaddr->addr;
-
-	if (dns_cb_arg->var)
-		env_set(dns_cb_arg->var, ipstr);
+	ip_addr_set(&dns_cb_arg->host_ipaddr, ipaddr);
 }
 
 static int dns_loop(struct udevice *udev, const char *name, const char *var)
 {
 	struct dns_cb_arg dns_cb_arg = { };
 	struct netif *netif;
+	const char *ipstr;
 	ip_addr_t ipaddr;
 	ulong start;
 	int ret;
-
-	dns_cb_arg.var = var;
 
 	netif = net_lwip_new_netif(udev);
 	if (!netif)
@@ -84,9 +75,12 @@ static int dns_loop(struct udevice *udev, const char *name, const char *var)
 
 	net_lwip_remove_netif(netif);
 
-	if (dns_cb_arg.done && dns_cb_arg.host_ipaddr.addr != 0) {
-		if (!var)
-			printf("%s\n", ipaddr_ntoa(&ipaddr));
+	if (dns_cb_arg.done && !ip_addr_isany(&dns_cb_arg.host_ipaddr)) {
+		ipstr = ipaddr_ntoa(&dns_cb_arg.host_ipaddr);
+		if (var)
+			env_set(var, ipstr);
+		else
+			printf("%s\n", ipstr);
 		return CMD_RET_SUCCESS;
 	}
 
@@ -97,6 +91,7 @@ int do_dns(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
 	char *name;
 	char *var = NULL;
+	int ret;
 
 	if (argc == 1 || argc > 3)
 		return CMD_RET_USAGE;
@@ -109,5 +104,9 @@ int do_dns(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 	if (net_lwip_eth_start() < 0)
 		return CMD_RET_FAILURE;
 
-	return dns_loop(eth_get_dev(), name, var);
+	ret = dns_loop(eth_get_dev(), name, var);
+
+	net_lwip_eth_stop();
+
+	return ret;
 }

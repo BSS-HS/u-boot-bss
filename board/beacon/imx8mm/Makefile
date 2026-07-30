@@ -4,8 +4,7 @@
 # SPDX-License-Identifier:      GPL-2.0+
 #
 
-obj-y += imx8mm_beacon.o
-obj-y += ../../freescale/common/
+obj-y += ../../nxp/common/
 
 ifdef CONFIG_XPL_BUILD
 obj-y += spl.o

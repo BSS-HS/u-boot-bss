@@ -16,6 +16,7 @@ Synopsis
     part start <interface> <dev> <part> <varname>
     part size <interface> <dev> <part> <varname>
     part number <interface> <dev> <part> <varname>
+    part name <interface> <dev> <part> <varname>
     part set <interface> <dev> <part> <type>
     part type <interface> <dev>:<part> [varname]
     part types
@@ -51,7 +52,7 @@ The 'part list' command prints or sets an environment variable to the list of pa
         an optional environment variable to store the list of partitions value into.
 
 The 'part start' command sets an environment variable to the start of the partition (in blocks),
-part can be either partition number or partition name.
+part can be either partition number, partition UUID or partition name.
 
     interface
         interface for accessing the block device (mmc, sata, scsi, usb, ....)
@@ -63,7 +64,7 @@ part can be either partition number or partition name.
         a variable to store the current start of the partition value into.
 
 The 'part size' command sets an environment variable to the size of the partition (in blocks),
-part can be either partition number or partition name.
+part can be either partition number, partition UUID or partition name.
 
     interface
         interface for accessing the block device (mmc, sata, scsi, usb, ....)
@@ -75,7 +76,7 @@ part can be either partition number or partition name.
         a variable to store the current size of the partition value into.
 
 The 'part number' command sets an environment variable to the partition number using the partition name,
-part must be specified as partition name.
+part must be specified as partition UUID or partition name.
 
     interface
         interface for accessing the block device (mmc, sata, scsi, usb, ....)
@@ -85,6 +86,18 @@ part must be specified as partition name.
         partition name
     varname
         a variable to store the current partition number value into
+
+The 'part name' command sets an environment variable to the partition name using the partition number,
+part must be specified as partition number.
+
+    interface
+        interface for accessing the block device (mmc, sata, scsi, usb, ....)
+    dev
+        device number
+    part
+        partition number
+    varname
+        a variable to store the current partition name into
 
 The 'part set' command sets the type of a partition. This is useful when
 autodetection fails or does not do the correct thing:

@@ -73,6 +73,7 @@ config TARGET_KMTEPR2
 config TARGET_GAZERBEAM
 	bool "Support gazerbeam"
 	select ARCH_MPC8308
+	select REGMAP
 	select SYS_FSL_ERRATUM_ESDHC111
 	imply ENV_IS_IN_FLASH
 	help
@@ -207,7 +208,7 @@ config FSL_SERDES
 config NEVER_ASSERT_ODT_TO_CPU
 	bool "Never assert ODT to internal IOs"
 
-source "board/freescale/mpc837xerdb/Kconfig"
+source "board/nxp/mpc837xerdb/Kconfig"
 source "board/gdsys/mpc8308/Kconfig"
 source "board/cssi/cmpcpro/Kconfig"
 

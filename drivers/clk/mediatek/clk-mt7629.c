@@ -28,6 +28,16 @@
 #define MCU_BUS_MSK			GENMASK(10, 9)
 #define MCU_BUS_SEL(x)			((x) << 9)
 
+enum {
+	CLK_PAD_CLK40M,
+	CLK_PAD_CLK20M,
+};
+
+static const ulong ext_clock_rates[] = {
+	[CLK_PAD_CLK40M] = 40 * MHZ,
+	[CLK_PAD_CLK20M] = 20 * MHZ,
+};
+
 /* apmixedsys */
 #define PLL(_id, _reg, _pwr_reg, _en_mask, _flags, _pcwbits, _pd_reg,	\
 	    _pd_shift, _pcw_reg, _pcw_shift) {				\
@@ -48,9 +58,9 @@
 static const struct mtk_pll_data apmixed_plls[] = {
 	PLL(CLK_APMIXED_ARMPLL, 0x200, 0x20c, 0x1, 0,
 	    21, 0x204, 24, 0x204, 0),
-	PLL(CLK_APMIXED_MAINPLL, 0x210, 0x21c, 0x1, HAVE_RST_BAR,
+	PLL(CLK_APMIXED_MAINPLL, 0x210, 0x21c, 0x1, CLK_PLL_HAVE_RST_BAR,
 	    21, 0x214, 24, 0x214, 0),
-	PLL(CLK_APMIXED_UNIV2PLL, 0x220, 0x22c, 0x1, HAVE_RST_BAR,
+	PLL(CLK_APMIXED_UNIV2PLL, 0x220, 0x22c, 0x1, CLK_PLL_HAVE_RST_BAR,
 	    7, 0x224, 24, 0x224, 14),
 	PLL(CLK_APMIXED_ETH1PLL, 0x300, 0x310, 0x1, 0,
 	    21, 0x300, 1, 0x304, 0),
@@ -61,6 +71,9 @@ static const struct mtk_pll_data apmixed_plls[] = {
 };
 
 /* topckgen */
+#define FIXED_CLK0(_id, _rate)					\
+	FIXED_CLK(_id, CLK_PAD_CLK40M, CLK_PARENT_EXT, _rate)
+
 #define FACTOR0(_id, _parent, _mult, _div)			\
 	FACTOR(_id, _parent, _mult, _div, CLK_PARENT_APMIXED)
 
@@ -68,19 +81,19 @@ static const struct mtk_pll_data apmixed_plls[] = {
 	FACTOR(_id, _parent, _mult, _div, CLK_PARENT_TOPCKGEN)
 
 #define FACTOR2(_id, _parent, _mult, _div)			\
-	FACTOR(_id, _parent, _mult, _div, 0)
+	FACTOR(_id, _parent, _mult, _div, CLK_PARENT_EXT)
 
 static const struct mtk_fixed_clk top_fixed_clks[] = {
-	FIXED_CLK(CLK_TOP_TO_U2_PHY, CLK_XTAL, 31250000),
-	FIXED_CLK(CLK_TOP_TO_U2_PHY_1P, CLK_XTAL, 31250000),
-	FIXED_CLK(CLK_TOP_PCIE0_PIPE_EN, CLK_XTAL, 125000000),
-	FIXED_CLK(CLK_TOP_PCIE1_PIPE_EN, CLK_XTAL, 125000000),
-	FIXED_CLK(CLK_TOP_SSUSB_TX250M, CLK_XTAL, 250000000),
-	FIXED_CLK(CLK_TOP_SSUSB_EQ_RX250M, CLK_XTAL, 250000000),
-	FIXED_CLK(CLK_TOP_SSUSB_CDR_REF, CLK_XTAL, 33333333),
-	FIXED_CLK(CLK_TOP_SSUSB_CDR_FB, CLK_XTAL, 50000000),
-	FIXED_CLK(CLK_TOP_SATA_ASIC, CLK_XTAL, 50000000),
-	FIXED_CLK(CLK_TOP_SATA_RBC, CLK_XTAL, 50000000),
+	FIXED_CLK0(CLK_TOP_TO_U2_PHY, 31250000),
+	FIXED_CLK0(CLK_TOP_TO_U2_PHY_1P, 31250000),
+	FIXED_CLK0(CLK_TOP_PCIE0_PIPE_EN, 125000000),
+	FIXED_CLK0(CLK_TOP_PCIE1_PIPE_EN, 125000000),
+	FIXED_CLK0(CLK_TOP_SSUSB_TX250M, 250000000),
+	FIXED_CLK0(CLK_TOP_SSUSB_EQ_RX250M, 250000000),
+	FIXED_CLK0(CLK_TOP_SSUSB_CDR_REF, 33333333),
+	FIXED_CLK0(CLK_TOP_SSUSB_CDR_FB, 50000000),
+	FIXED_CLK0(CLK_TOP_SATA_ASIC, 50000000),
+	FIXED_CLK0(CLK_TOP_SATA_RBC, 50000000),
 };
 
 static const struct mtk_fixed_factor top_fixed_divs[] = {
@@ -90,11 +103,11 @@ static const struct mtk_fixed_factor top_fixed_divs[] = {
 	FACTOR0(CLK_TOP_P0_1MHZ, CLK_APMIXED_ETH1PLL, 1, 500),
 	FACTOR0(CLK_TOP_ETH_500M, CLK_APMIXED_ETH1PLL, 1, 1),
 	FACTOR1(CLK_TOP_TXCLK_SRC_PRE, CLK_TOP_SGMIIPLL_D2, 1, 1),
-	FACTOR2(CLK_TOP_RTC, CLK_XTAL, 1, 1024),
-	FACTOR2(CLK_TOP_PWM_QTR_26M, CLK_XTAL, 1, 1),
-	FACTOR2(CLK_TOP_CPUM_TCK_IN, CLK_XTAL, 1, 1),
-	FACTOR2(CLK_TOP_TO_USB3_DA_TOP, CLK_XTAL, 1, 1),
-	FACTOR2(CLK_TOP_MEMPLL, CLK_XTAL, 32, 1),
+	FACTOR2(CLK_TOP_RTC, CLK_PAD_CLK40M, 1, 1024),
+	FACTOR2(CLK_TOP_PWM_QTR_26M, CLK_PAD_CLK40M, 1, 1),
+	FACTOR2(CLK_TOP_CPUM_TCK_IN, CLK_PAD_CLK40M, 1, 1),
+	FACTOR2(CLK_TOP_TO_USB3_DA_TOP, CLK_PAD_CLK40M, 1, 1),
+	FACTOR2(CLK_TOP_MEMPLL, CLK_PAD_CLK40M, 32, 1),
 	FACTOR1(CLK_TOP_DMPLL, CLK_TOP_MEMPLL, 1, 1),
 	FACTOR1(CLK_TOP_DMPLL_D4, CLK_TOP_MEMPLL, 1, 4),
 	FACTOR1(CLK_TOP_DMPLL_D8, CLK_TOP_MEMPLL, 1, 8),
@@ -130,7 +143,7 @@ static const struct mtk_fixed_factor top_fixed_divs[] = {
 	FACTOR1(CLK_TOP_UNIVPLL_D80_D4, CLK_TOP_UNIVPLL, 1, 320),
 	FACTOR1(CLK_TOP_UNIV48M, CLK_TOP_UNIVPLL, 1, 25),
 	FACTOR0(CLK_TOP_SGMIIPLL_D2, CLK_APMIXED_SGMIPLL, 1, 2),
-	FACTOR2(CLK_TOP_CLKXTAL_D4, CLK_XTAL, 1, 4),
+	FACTOR2(CLK_TOP_CLKXTAL_D4, CLK_PAD_CLK40M, 1, 4),
 	FACTOR1(CLK_TOP_HD_FAXI, CLK_TOP_AXI_SEL, 1, 1),
 	FACTOR1(CLK_TOP_FAXI, CLK_TOP_AXI_SEL, 1, 1),
 	FACTOR1(CLK_TOP_F_FAUD_INTBUS, CLK_TOP_AUD_INTBUS_SEL, 1, 1),
@@ -149,215 +162,215 @@ static const struct mtk_fixed_factor top_fixed_divs[] = {
 	FACTOR1(CLK_TOP_PCIE0_MAC_EN, CLK_TOP_UNIVPLL1_D4, 1, 1),
 };
 
-static const int axi_parents[] = {
-	CLK_XTAL,
-	CLK_TOP_SYSPLL1_D2,
-	CLK_TOP_SYSPLL_D5,
-	CLK_TOP_SYSPLL1_D4,
-	CLK_TOP_UNIVPLL_D5,
-	CLK_TOP_UNIVPLL2_D2,
-	CLK_TOP_UNIVPLL_D7,
-	CLK_TOP_DMPLL
+static const struct mtk_parent axi_parents[] = {
+	EXT_PARENT(CLK_PAD_CLK40M),
+	TOP_PARENT(CLK_TOP_SYSPLL1_D2),
+	TOP_PARENT(CLK_TOP_SYSPLL_D5),
+	TOP_PARENT(CLK_TOP_SYSPLL1_D4),
+	TOP_PARENT(CLK_TOP_UNIVPLL_D5),
+	TOP_PARENT(CLK_TOP_UNIVPLL2_D2),
+	TOP_PARENT(CLK_TOP_UNIVPLL_D7),
+	TOP_PARENT(CLK_TOP_DMPLL),
 };
 
-static const int mem_parents[] = {
-	CLK_XTAL,
-	CLK_TOP_DMPLL
+static const struct mtk_parent mem_parents[] = {
+	EXT_PARENT(CLK_PAD_CLK40M),
+	TOP_PARENT(CLK_TOP_DMPLL),
 };
 
-static const int ddrphycfg_parents[] = {
-	CLK_XTAL,
-	CLK_TOP_SYSPLL1_D8
+static const struct mtk_parent ddrphycfg_parents[] = {
+	EXT_PARENT(CLK_PAD_CLK40M),
+	TOP_PARENT(CLK_TOP_SYSPLL1_D8),
 };
 
-static const int eth_parents[] = {
-	CLK_XTAL,
-	CLK_TOP_SYSPLL1_D2,
-	CLK_TOP_UNIVPLL1_D2,
-	CLK_TOP_SYSPLL1_D4,
-	CLK_TOP_UNIVPLL_D5,
-	CLK_TOP_SGMIIPLL_D2,
-	CLK_TOP_UNIVPLL_D7,
-	CLK_TOP_DMPLL
+static const struct mtk_parent eth_parents[] = {
+	EXT_PARENT(CLK_PAD_CLK40M),
+	TOP_PARENT(CLK_TOP_SYSPLL1_D2),
+	TOP_PARENT(CLK_TOP_UNIVPLL1_D2),
+	TOP_PARENT(CLK_TOP_SYSPLL1_D4),
+	TOP_PARENT(CLK_TOP_UNIVPLL_D5),
+	TOP_PARENT(CLK_TOP_SGMIIPLL_D2),
+	TOP_PARENT(CLK_TOP_UNIVPLL_D7),
+	TOP_PARENT(CLK_TOP_DMPLL),
 };
 
-static const int pwm_parents[] = {
-	CLK_XTAL,
-	CLK_TOP_UNIVPLL2_D4
+static const struct mtk_parent pwm_parents[] = {
+	EXT_PARENT(CLK_PAD_CLK40M),
+	TOP_PARENT(CLK_TOP_UNIVPLL2_D4),
 };
 
-static const int sgmii_ref_1_parents[] = {
-	CLK_XTAL,
-	CLK_TOP_SGMIIPLL_D2
+static const struct mtk_parent sgmii_ref_1_parents[] = {
+	EXT_PARENT(CLK_PAD_CLK40M),
+	TOP_PARENT(CLK_TOP_SGMIIPLL_D2),
 };
 
-static const int nfi_infra_parents[] = {
-	CLK_XTAL,
-	CLK_XTAL,
-	CLK_XTAL,
-	CLK_XTAL,
-	CLK_XTAL,
-	CLK_XTAL,
-	CLK_TOP_UNIVPLL2_D8,
-	CLK_TOP_UNIVPLL3_D4,
-	CLK_TOP_SYSPLL1_D8,
-	CLK_TOP_UNIVPLL1_D8,
-	CLK_TOP_SYSPLL4_D2,
-	CLK_TOP_SYSPLL2_D4,
-	CLK_TOP_UNIVPLL2_D4,
-	CLK_TOP_UNIVPLL3_D2,
-	CLK_TOP_SYSPLL1_D4,
-	CLK_TOP_SYSPLL_D7
+static const struct mtk_parent nfi_infra_parents[] = {
+	EXT_PARENT(CLK_PAD_CLK40M),
+	EXT_PARENT(CLK_PAD_CLK40M),
+	EXT_PARENT(CLK_PAD_CLK40M),
+	EXT_PARENT(CLK_PAD_CLK40M),
+	EXT_PARENT(CLK_PAD_CLK40M),
+	EXT_PARENT(CLK_PAD_CLK40M),
+	TOP_PARENT(CLK_TOP_UNIVPLL2_D8),
+	TOP_PARENT(CLK_TOP_UNIVPLL3_D4),
+	TOP_PARENT(CLK_TOP_SYSPLL1_D8),
+	TOP_PARENT(CLK_TOP_UNIVPLL1_D8),
+	TOP_PARENT(CLK_TOP_SYSPLL4_D2),
+	TOP_PARENT(CLK_TOP_SYSPLL2_D4),
+	TOP_PARENT(CLK_TOP_UNIVPLL2_D4),
+	TOP_PARENT(CLK_TOP_UNIVPLL3_D2),
+	TOP_PARENT(CLK_TOP_SYSPLL1_D4),
+	TOP_PARENT(CLK_TOP_SYSPLL_D7),
 };
 
-static const int flash_parents[] = {
-	CLK_XTAL,
-	CLK_TOP_UNIVPLL_D80_D4,
-	CLK_TOP_SYSPLL2_D8,
-	CLK_TOP_SYSPLL3_D4,
-	CLK_TOP_UNIVPLL3_D4,
-	CLK_TOP_UNIVPLL1_D8,
-	CLK_TOP_SYSPLL2_D4,
-	CLK_TOP_UNIVPLL2_D4
+static const struct mtk_parent flash_parents[] = {
+	EXT_PARENT(CLK_PAD_CLK40M),
+	TOP_PARENT(CLK_TOP_UNIVPLL_D80_D4),
+	TOP_PARENT(CLK_TOP_SYSPLL2_D8),
+	TOP_PARENT(CLK_TOP_SYSPLL3_D4),
+	TOP_PARENT(CLK_TOP_UNIVPLL3_D4),
+	TOP_PARENT(CLK_TOP_UNIVPLL1_D8),
+	TOP_PARENT(CLK_TOP_SYSPLL2_D4),
+	TOP_PARENT(CLK_TOP_UNIVPLL2_D4),
 };
 
-static const int uart_parents[] = {
-	CLK_XTAL,
-	CLK_TOP_UNIVPLL2_D8
+static const struct mtk_parent uart_parents[] = {
+	EXT_PARENT(CLK_PAD_CLK40M),
+	TOP_PARENT(CLK_TOP_UNIVPLL2_D8),
 };
 
-static const int spi0_parents[] = {
-	CLK_XTAL,
-	CLK_TOP_SYSPLL3_D2,
-	CLK_XTAL,
-	CLK_TOP_SYSPLL2_D4,
-	CLK_TOP_SYSPLL4_D2,
-	CLK_TOP_UNIVPLL2_D4,
-	CLK_TOP_UNIVPLL1_D8,
-	CLK_XTAL
+static const struct mtk_parent spi0_parents[] = {
+	EXT_PARENT(CLK_PAD_CLK40M),
+	TOP_PARENT(CLK_TOP_SYSPLL3_D2),
+	EXT_PARENT(CLK_PAD_CLK40M),
+	TOP_PARENT(CLK_TOP_SYSPLL2_D4),
+	TOP_PARENT(CLK_TOP_SYSPLL4_D2),
+	TOP_PARENT(CLK_TOP_UNIVPLL2_D4),
+	TOP_PARENT(CLK_TOP_UNIVPLL1_D8),
+	EXT_PARENT(CLK_PAD_CLK40M),
 };
 
-static const int spi1_parents[] = {
-	CLK_XTAL,
-	CLK_TOP_SYSPLL3_D2,
-	CLK_XTAL,
-	CLK_TOP_SYSPLL4_D4,
-	CLK_TOP_SYSPLL4_D2,
-	CLK_TOP_UNIVPLL2_D4,
-	CLK_TOP_UNIVPLL1_D8,
-	CLK_XTAL
+static const struct mtk_parent spi1_parents[] = {
+	EXT_PARENT(CLK_PAD_CLK40M),
+	TOP_PARENT(CLK_TOP_SYSPLL3_D2),
+	EXT_PARENT(CLK_PAD_CLK40M),
+	TOP_PARENT(CLK_TOP_SYSPLL4_D4),
+	TOP_PARENT(CLK_TOP_SYSPLL4_D2),
+	TOP_PARENT(CLK_TOP_UNIVPLL2_D4),
+	TOP_PARENT(CLK_TOP_UNIVPLL1_D8),
+	EXT_PARENT(CLK_PAD_CLK40M),
 };
 
-static const int msdc30_0_parents[] = {
-	CLK_XTAL,
-	CLK_TOP_UNIVPLL2_D16,
-	CLK_TOP_UNIV48M
+static const struct mtk_parent msdc30_0_parents[] = {
+	EXT_PARENT(CLK_PAD_CLK40M),
+	TOP_PARENT(CLK_TOP_UNIVPLL2_D16),
+	TOP_PARENT(CLK_TOP_UNIV48M),
 };
 
-static const int msdc30_1_parents[] = {
-	CLK_XTAL,
-	CLK_TOP_UNIVPLL2_D16,
-	CLK_TOP_UNIV48M,
-	CLK_TOP_SYSPLL2_D4,
-	CLK_TOP_UNIVPLL2_D4,
-	CLK_TOP_SYSPLL_D7,
-	CLK_TOP_SYSPLL2_D2,
-	CLK_TOP_UNIVPLL2_D2
+static const struct mtk_parent msdc30_1_parents[] = {
+	EXT_PARENT(CLK_PAD_CLK40M),
+	TOP_PARENT(CLK_TOP_UNIVPLL2_D16),
+	TOP_PARENT(CLK_TOP_UNIV48M),
+	TOP_PARENT(CLK_TOP_SYSPLL2_D4),
+	TOP_PARENT(CLK_TOP_UNIVPLL2_D4),
+	TOP_PARENT(CLK_TOP_SYSPLL_D7),
+	TOP_PARENT(CLK_TOP_SYSPLL2_D2),
+	TOP_PARENT(CLK_TOP_UNIVPLL2_D2),
 };
 
-static const int ap2wbmcu_parents[] = {
-	CLK_XTAL,
-	CLK_TOP_SYSPLL1_D2,
-	CLK_TOP_UNIV48M,
-	CLK_TOP_SYSPLL1_D8,
-	CLK_TOP_UNIVPLL2_D4,
-	CLK_TOP_SYSPLL_D7,
-	CLK_TOP_SYSPLL2_D2,
-	CLK_TOP_UNIVPLL2_D2
+static const struct mtk_parent ap2wbmcu_parents[] = {
+	EXT_PARENT(CLK_PAD_CLK40M),
+	TOP_PARENT(CLK_TOP_SYSPLL1_D2),
+	TOP_PARENT(CLK_TOP_UNIV48M),
+	TOP_PARENT(CLK_TOP_SYSPLL1_D8),
+	TOP_PARENT(CLK_TOP_UNIVPLL2_D4),
+	TOP_PARENT(CLK_TOP_SYSPLL_D7),
+	TOP_PARENT(CLK_TOP_SYSPLL2_D2),
+	TOP_PARENT(CLK_TOP_UNIVPLL2_D2),
 };
 
-static const int audio_parents[] = {
-	CLK_XTAL,
-	CLK_TOP_SYSPLL3_D4,
-	CLK_TOP_SYSPLL4_D4,
-	CLK_TOP_SYSPLL1_D16
+static const struct mtk_parent audio_parents[] = {
+	EXT_PARENT(CLK_PAD_CLK40M),
+	TOP_PARENT(CLK_TOP_SYSPLL3_D4),
+	TOP_PARENT(CLK_TOP_SYSPLL4_D4),
+	TOP_PARENT(CLK_TOP_SYSPLL1_D16),
 };
 
-static const int aud_intbus_parents[] = {
-	CLK_XTAL,
-	CLK_TOP_SYSPLL1_D4,
-	CLK_TOP_SYSPLL4_D2,
-	CLK_TOP_DMPLL_D4
+static const struct mtk_parent aud_intbus_parents[] = {
+	EXT_PARENT(CLK_PAD_CLK40M),
+	TOP_PARENT(CLK_TOP_SYSPLL1_D4),
+	TOP_PARENT(CLK_TOP_SYSPLL4_D2),
+	TOP_PARENT(CLK_TOP_DMPLL_D4),
 };
 
-static const int pmicspi_parents[] = {
-	CLK_XTAL,
-	CLK_TOP_SYSPLL1_D8,
-	CLK_TOP_SYSPLL3_D4,
-	CLK_TOP_SYSPLL1_D16,
-	CLK_TOP_UNIVPLL3_D4,
-	CLK_XTAL,
-	CLK_TOP_UNIVPLL2_D4,
-	CLK_TOP_DMPLL_D8
+static const struct mtk_parent pmicspi_parents[] = {
+	EXT_PARENT(CLK_PAD_CLK40M),
+	TOP_PARENT(CLK_TOP_SYSPLL1_D8),
+	TOP_PARENT(CLK_TOP_SYSPLL3_D4),
+	TOP_PARENT(CLK_TOP_SYSPLL1_D16),
+	TOP_PARENT(CLK_TOP_UNIVPLL3_D4),
+	EXT_PARENT(CLK_PAD_CLK40M),
+	TOP_PARENT(CLK_TOP_UNIVPLL2_D4),
+	TOP_PARENT(CLK_TOP_DMPLL_D8),
 };
 
-static const int scp_parents[] = {
-	CLK_XTAL,
-	CLK_TOP_SYSPLL1_D8,
-	CLK_TOP_UNIVPLL2_D2,
-	CLK_TOP_UNIVPLL2_D4
+static const struct mtk_parent scp_parents[] = {
+	EXT_PARENT(CLK_PAD_CLK40M),
+	TOP_PARENT(CLK_TOP_SYSPLL1_D8),
+	TOP_PARENT(CLK_TOP_UNIVPLL2_D2),
+	TOP_PARENT(CLK_TOP_UNIVPLL2_D4),
 };
 
-static const int atb_parents[] = {
-	CLK_XTAL,
-	CLK_TOP_SYSPLL1_D2,
-	CLK_TOP_SYSPLL_D5
+static const struct mtk_parent atb_parents[] = {
+	EXT_PARENT(CLK_PAD_CLK40M),
+	TOP_PARENT(CLK_TOP_SYSPLL1_D2),
+	TOP_PARENT(CLK_TOP_SYSPLL_D5),
 };
 
-static const int hif_parents[] = {
-	CLK_XTAL,
-	CLK_TOP_SYSPLL1_D2,
-	CLK_TOP_UNIVPLL1_D2,
-	CLK_TOP_SYSPLL1_D4,
-	CLK_TOP_UNIVPLL_D5,
-	-1,
-	CLK_TOP_UNIVPLL_D7
+static const struct mtk_parent hif_parents[] = {
+	EXT_PARENT(CLK_PAD_CLK40M),
+	TOP_PARENT(CLK_TOP_SYSPLL1_D2),
+	TOP_PARENT(CLK_TOP_UNIVPLL1_D2),
+	TOP_PARENT(CLK_TOP_SYSPLL1_D4),
+	TOP_PARENT(CLK_TOP_UNIVPLL_D5),
+	VOID_PARENT,
+	TOP_PARENT(CLK_TOP_UNIVPLL_D7),
 };
 
-static const int sata_parents[] = {
-	CLK_XTAL,
-	CLK_TOP_UNIVPLL2_D4
+static const struct mtk_parent sata_parents[] = {
+	EXT_PARENT(CLK_PAD_CLK40M),
+	TOP_PARENT(CLK_TOP_UNIVPLL2_D4),
 };
 
-static const int usb20_parents[] = {
-	CLK_XTAL,
-	CLK_TOP_UNIVPLL3_D4,
-	CLK_TOP_SYSPLL1_D8
+static const struct mtk_parent usb20_parents[] = {
+	EXT_PARENT(CLK_PAD_CLK40M),
+	TOP_PARENT(CLK_TOP_UNIVPLL3_D4),
+	TOP_PARENT(CLK_TOP_SYSPLL1_D8),
 };
 
-static const int aud1_parents[] = {
-	CLK_XTAL
+static const struct mtk_parent aud1_parents[] = {
+	EXT_PARENT(CLK_PAD_CLK40M),
 };
 
-static const int irrx_parents[] = {
-	CLK_XTAL,
-	CLK_TOP_SYSPLL4_D16
+static const struct mtk_parent irrx_parents[] = {
+	EXT_PARENT(CLK_PAD_CLK40M),
+	TOP_PARENT(CLK_TOP_SYSPLL4_D16),
 };
 
-static const int crypto_parents[] = {
-	CLK_XTAL,
-	CLK_TOP_UNIVPLL_D3,
-	CLK_TOP_UNIVPLL1_D2,
-	CLK_TOP_SYSPLL1_D2,
-	CLK_TOP_UNIVPLL_D5,
-	CLK_TOP_SYSPLL_D5,
-	CLK_TOP_UNIVPLL2_D2,
-	CLK_TOP_SYSPLL_D2
+static const struct mtk_parent crypto_parents[] = {
+	EXT_PARENT(CLK_PAD_CLK40M),
+	TOP_PARENT(CLK_TOP_UNIVPLL_D3),
+	TOP_PARENT(CLK_TOP_UNIVPLL1_D2),
+	TOP_PARENT(CLK_TOP_SYSPLL1_D2),
+	TOP_PARENT(CLK_TOP_UNIVPLL_D5),
+	TOP_PARENT(CLK_TOP_SYSPLL_D5),
+	TOP_PARENT(CLK_TOP_UNIVPLL2_D2),
+	TOP_PARENT(CLK_TOP_SYSPLL_D2),
 };
 
-static const int gpt10m_parents[] = {
-	CLK_XTAL,
-	CLK_TOP_CLKXTAL_D4
+static const struct mtk_parent gpt10m_parents[] = {
+	EXT_PARENT(CLK_PAD_CLK40M),
+	TOP_PARENT(CLK_TOP_CLKXTAL_D4),
 };
 
 static const struct mtk_composite top_muxes[] = {
@@ -393,8 +406,7 @@ static const struct mtk_composite top_muxes[] = {
 
 	/* CLK_CFG_5 */
 	MUX_GATE(CLK_TOP_ATB_SEL, atb_parents, 0x90, 0, 2, 7),
-	MUX_GATE_FLAGS(CLK_TOP_HIF_SEL, hif_parents, 0x90, 8, 3, 15,
-		       CLK_DOMAIN_SCPSYS),
+	MUX_GATE_FLAGS(CLK_TOP_HIF_SEL, hif_parents, 0x90, 8, 3, 15, CLK_MUX_DOMAIN_SCPSYS),
 	MUX_GATE(CLK_TOP_SATA_SEL, sata_parents, 0x90, 16, 1, 23),
 	MUX_GATE(CLK_TOP_U2_SEL, usb20_parents, 0x90, 24, 2, 31),
 
@@ -564,26 +576,35 @@ static const struct mtk_gate ssusb_cgs[] = {
 };
 
 static const struct mtk_clk_tree mt7629_clk_tree = {
-	.xtal_rate = 40 * MHZ,
-	.xtal2_rate = 20 * MHZ,
+	.pll_parent = EXT_PARENT(CLK_PAD_CLK20M),
+	.ext_clk_rates = ext_clock_rates,
+	.num_ext_clks = ARRAY_SIZE(ext_clock_rates),
 	.fdivs_offs = CLK_TOP_TO_USB3_SYS,
 	.muxes_offs = CLK_TOP_AXI_SEL,
 	.plls = apmixed_plls,
 	.fclks = top_fixed_clks,
 	.fdivs = top_fixed_divs,
 	.muxes = top_muxes,
+	.num_plls = ARRAY_SIZE(apmixed_plls),
+	.num_fclks = ARRAY_SIZE(top_fixed_clks),
+	.num_fdivs = ARRAY_SIZE(top_fixed_divs),
+	.num_muxes = ARRAY_SIZE(top_muxes),
 };
 
 static const struct mtk_clk_tree mt7629_peri_clk_tree = {
-	.xtal_rate = 40 * MHZ,
-	.xtal2_rate = 20 * MHZ,
-	.gates_offs = CLK_PERI_PWM1_PD,
+	.pll_parent = EXT_PARENT(CLK_PAD_CLK20M),
+	.ext_clk_rates = ext_clock_rates,
+	.num_ext_clks = ARRAY_SIZE(ext_clock_rates),
 	.fdivs_offs = CLK_TOP_TO_USB3_SYS,
 	.muxes_offs = CLK_TOP_AXI_SEL,
 	.plls = apmixed_plls,
 	.fclks = top_fixed_clks,
 	.fdivs = top_fixed_divs,
 	.muxes = top_muxes,
+	.num_plls = ARRAY_SIZE(apmixed_plls),
+	.num_fclks = ARRAY_SIZE(top_fixed_clks),
+	.num_fdivs = ARRAY_SIZE(top_fixed_divs),
+	.num_muxes = ARRAY_SIZE(top_muxes),
 };
 
 static int mt7629_mcucfg_probe(struct udevice *dev)
@@ -626,17 +647,20 @@ static int mt7629_topckgen_probe(struct udevice *dev)
 
 static int mt7629_infracfg_probe(struct udevice *dev)
 {
-	return mtk_common_clk_gate_init(dev, &mt7629_clk_tree, infra_cgs);
+	return mtk_common_clk_gate_init(dev, &mt7629_clk_tree, infra_cgs,
+					ARRAY_SIZE(infra_cgs), 0);
 }
 
 static int mt7629_pericfg_probe(struct udevice *dev)
 {
-	return mtk_common_clk_gate_init(dev, &mt7629_peri_clk_tree, peri_cgs);
+	return mtk_common_clk_gate_init(dev, &mt7629_peri_clk_tree, peri_cgs,
+					ARRAY_SIZE(peri_cgs), CLK_PERI_PWM1_PD);
 }
 
 static int mt7629_ethsys_probe(struct udevice *dev)
 {
-	return mtk_common_clk_gate_init(dev, &mt7629_clk_tree, eth_cgs);
+	return mtk_common_clk_gate_init(dev, &mt7629_clk_tree, eth_cgs,
+					ARRAY_SIZE(eth_cgs), 0);
 }
 
 static int mt7629_ethsys_bind(struct udevice *dev)
@@ -654,12 +678,14 @@ static int mt7629_ethsys_bind(struct udevice *dev)
 
 static int mt7629_sgmiisys_probe(struct udevice *dev)
 {
-	return mtk_common_clk_gate_init(dev, &mt7629_clk_tree, sgmii_cgs);
+	return mtk_common_clk_gate_init(dev, &mt7629_clk_tree, sgmii_cgs,
+					ARRAY_SIZE(sgmii_cgs), 0);
 }
 
 static int mt7629_ssusbsys_probe(struct udevice *dev)
 {
-	return mtk_common_clk_gate_init(dev, &mt7629_clk_tree, ssusb_cgs);
+	return mtk_common_clk_gate_init(dev, &mt7629_clk_tree, ssusb_cgs,
+					ARRAY_SIZE(ssusb_cgs), 0);
 }
 
 static const struct udevice_id mt7629_apmixed_compat[] = {

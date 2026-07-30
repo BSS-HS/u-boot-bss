@@ -31,15 +31,11 @@ void (*push_packet)(void *, int len) = 0;
 int net_try_count;
 static int net_restarted;
 int net_restart_wrap;
+static int net_lwip_eth_started;
 static uchar net_pkt_buf[(PKTBUFSRX) * PKTSIZE_ALIGN + PKTALIGN]
 	__aligned(PKTALIGN);
-uchar *net_rx_packets[PKTBUFSRX];
-uchar *net_rx_packet;
 const u8 net_bcast_ethaddr[6] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 char *pxelinux_configfile;
-/* Our IP addr (0 = unknown) */
-struct in_addr	net_ip;
-char net_boot_file_name[1024];
 
 static err_t net_lwip_tx(struct netif *netif, struct pbuf *p)
 {
@@ -108,9 +104,9 @@ struct netif *net_lwip_get_netif(void)
 static int get_udev_ipv4_info(struct udevice *dev, ip4_addr_t *ip,
 			      ip4_addr_t *mask, ip4_addr_t *gw)
 {
-	char ipstr[] = "ipaddr\0\0";
-	char maskstr[] = "netmask\0\0";
-	char gwstr[] = "gatewayip\0\0";
+	char ipstr[] = "ipaddr\0\0\0";
+	char maskstr[] = "netmask\0\0\0";
+	char gwstr[] = "gatewayip\0\0\0";
 	int idx = dev_seq(dev);
 	char *env;
 
@@ -185,16 +181,31 @@ int net_lwip_eth_start(void)
 {
 	int ret;
 
+	if (net_lwip_eth_started++ > 0)
+		return 0;
+
 	net_init();
 	eth_halt();
 	eth_set_current();
 	ret = eth_init();
 	if (ret < 0) {
+		net_lwip_eth_started--;
 		eth_halt();
 		return ret;
 	}
 
 	return 0;
+}
+
+void net_lwip_eth_stop(void)
+{
+	if (!net_lwip_eth_started)
+		return;
+
+	if (--net_lwip_eth_started)
+		return;
+
+	eth_halt();
 }
 
 static struct netif *new_netif(struct udevice *udev, bool with_ip)
@@ -297,6 +308,7 @@ static struct pbuf *alloc_pbuf_and_copy(uchar *data, int len)
 	/* We allocate a pbuf chain of pbufs from the pool. */
 	p = pbuf_alloc(PBUF_RAW, len, PBUF_POOL);
 	if (!p) {
+		debug("Failed to allocate pbuf !!!!!\n");
 		LINK_STATS_INC(link.memerr);
 		LINK_STATS_INC(link.drop);
 		return NULL;

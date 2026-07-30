@@ -26,7 +26,7 @@ MKIMAGE_TARGET-$(CONFIG_MX28) = mxsimage$(CONFIG_SPL_FRAMEWORK:%=-spl).mx28.cfg
 #
 quiet_cmd_mkivt_mxs = MXSIVT  $@
 cmd_mkivt_mxs =								\
-	sz=`expr \`stat -c "%s" $^\` + 64 + 3904 + 128` ;		\
+	sz=`expr \`stat -c "%s" $<\` + 64 + 3904 + 128` ;		\
 	echo -n "0x402000d1 $2 0 0 0 $3 $4 0 $$sz 0 0 0 0 0 0 0" |	\
 	tr -s " " | xargs -d " " -i printf "%08x\n" "{}" | rev |	\
 	sed "s/\(.\)\(.\)/\\\\\\\\x\2\1\n/g" | xargs -i printf "{}" >$@
@@ -34,15 +34,15 @@ cmd_mkivt_mxs =								\
 # Align binary to 64B
 quiet_cmd_mkalign_mxs = MXSALGN $@
 cmd_mkalign_mxs =							\
-	dd if=$^ of=$@ ibs=64 conv=sync 2>/dev/null &&			\
-	mv $@ $^
+	dd if=$< of=$@ ibs=64 conv=sync 2>/dev/null &&			\
+	mv $@ $<
 
 # Assemble the CSF file
 quiet_cmd_mkcsfreq_mxs = MXSCSFR $@
 cmd_mkcsfreq_mxs =							\
-	ivt=$(word 1,$^) ;						\
-	bin=$(word 2,$^) ;						\
-	csf=$(word 3,$^) ;						\
+	ivt=$(word 1,$(real-prereqs)) ;					\
+	bin=$(word 2,$(real-prereqs)) ;					\
+	csf=$(word 3,$(real-prereqs)) ;					\
 	sed "s@VENDOR@$(VENDOR)@g;s@BOARD@$(BOARD)@g" "$$csf" |		\
 		sed '/^\#\#Blocks/ d' > $@ ;				\
 	echo "  Blocks = $2 0x0 `stat -c '%s' $$bin` \"$$bin\" , \\" >> $@ ; \
@@ -50,26 +50,26 @@ cmd_mkcsfreq_mxs =							\
 
 # Sign files
 quiet_cmd_mkcst_mxs = MXSCST  $@
-cmd_mkcst_mxs = cst -o $@ < $^						\
+cmd_mkcst_mxs = cst -o $@ < $<						\
 	$(if $(KBUILD_VERBOSE:1=), >/dev/null)
 
-spl/u-boot-spl.ivt: spl/u-boot-spl.bin
+spl/u-boot-spl.ivt: spl/u-boot-spl.bin FORCE
 	$(call if_changed,mkalign_mxs)
 	$(call if_changed,mkivt_mxs,$(CONFIG_SPL_TEXT_BASE),\
 		0x00008000,0x00008040)
 
-u-boot.ivt: u-boot.bin
+u-boot.ivt: u-boot.bin FORCE
 	$(call if_changed,mkalign_mxs)
 	$(call if_changed,mkivt_mxs,$(CONFIG_TEXT_BASE),\
 		0x40001000,0x40001040)
 
-spl/u-boot-spl.csf: spl/u-boot-spl.ivt spl/u-boot-spl.bin board/$(VENDOR)/$(BOARD)/sign/u-boot-spl.csf
+spl/u-boot-spl.csf: spl/u-boot-spl.ivt spl/u-boot-spl.bin board/$(VENDOR)/$(BOARD)/sign/u-boot-spl.csf FORCE
 	$(call if_changed,mkcsfreq_mxs,$(CONFIG_SPL_TEXT_BASE),0x8000)
 
-u-boot.csf: u-boot.ivt u-boot.bin board/$(VENDOR)/$(BOARD)/sign/u-boot.csf
+u-boot.csf: u-boot.ivt u-boot.bin board/$(VENDOR)/$(BOARD)/sign/u-boot.csf FORCE
 	$(call if_changed,mkcsfreq_mxs,$(CONFIG_TEXT_BASE),0x40001000)
 
-%.sig: %.csf
+%.sig: %.csf FORCE
 	$(call if_changed,mkcst_mxs)
 
 MKIMAGEFLAGS_u-boot.sb = -n $< -T mxsimage

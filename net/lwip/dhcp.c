@@ -30,9 +30,9 @@ static void call_lwip_dhcp_fine_tmr(void *ctx)
 
 static int dhcp_loop(struct udevice *udev)
 {
-	char ipstr[] = "ipaddr\0\0";
-	char maskstr[] = "netmask\0\0";
-	char gwstr[] = "gatewayip\0\0";
+	char ipstr[] = "ipaddr\0\0\0";
+	char maskstr[] = "netmask\0\0\0";
+	char gwstr[] = "gatewayip\0\0\0";
 	const ip_addr_t *ntpserverip;
 	unsigned long start;
 	struct netif *netif;
@@ -93,14 +93,17 @@ static int dhcp_loop(struct udevice *udev)
 		sprintf(maskstr, "netmask%d", idx);
 		sprintf(gwstr, "gatewayip%d", idx);
 	} else {
-		net_ip.s_addr = dhcp->offered_ip_addr.addr;
+		net_ip.s_addr = ip_addr_get_ip4_u32(&dhcp->offered_ip_addr);
 	}
 
 	env_set(ipstr, ip4addr_ntoa(&dhcp->offered_ip_addr));
 	env_set(maskstr, ip4addr_ntoa(&dhcp->offered_sn_mask));
 	env_set("serverip", ip4addr_ntoa(&dhcp->server_ip_addr));
-	if (dhcp->offered_gw_addr.addr != 0)
+	if (!ip4_addr_isany(&dhcp->offered_gw_addr))
 		env_set(gwstr, ip4addr_ntoa(&dhcp->offered_gw_addr));
+	if (!ip4_addr_isany(&dhcp->offered_si_addr) &&
+	    !ip4_addr_eq(&dhcp->offered_si_addr, &dhcp->server_ip_addr))
+		env_set("tftpserverip", ip4addr_ntoa(&dhcp->offered_si_addr));
 
 #ifdef CONFIG_PROT_DNS_LWIP
 	env_set("dnsip", ip4addr_ntoa(dns_getserver(0)));
@@ -135,18 +138,25 @@ int do_dhcp(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 	dev = eth_get_dev();
 	if (!dev) {
 		log_err("No network device\n");
-		return CMD_RET_FAILURE;
+		ret = CMD_RET_FAILURE;
+		goto out;
 	}
 
 	ret = dhcp_loop(dev);
 	if (ret)
-		return ret;
+		goto out;
 
 	if (argc > 1) {
 		struct cmd_tbl cmdtp = {};
 
-		return do_tftpb(&cmdtp, 0, argc, argv);
+		ret = do_tftpb(&cmdtp, 0, argc, argv);
+		goto out;
 	}
 
-	return CMD_RET_SUCCESS;
+	ret = CMD_RET_SUCCESS;
+
+out:
+	net_lwip_eth_stop();
+
+	return ret;
 }

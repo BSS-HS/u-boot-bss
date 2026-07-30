@@ -16,6 +16,7 @@
 #include <zynqmp_firmware.h>
 #include <asm/cache.h>
 #include <asm/ptrace.h>
+#include <linux/bitfield.h>
 
 #if defined(CONFIG_ZYNQMP_IPI)
 #include <mailbox.h>
@@ -247,6 +248,7 @@ u32 zynqmp_pm_get_bootmode_reg(void)
 	return ret_payload[1];
 }
 
+#if defined(CONFIG_ARCH_VERSAL) || defined(CONFIG_ARCH_VERSAL2)
 u32 zynqmp_pm_get_pmc_multi_boot_reg(void)
 {
 	int ret;
@@ -270,6 +272,7 @@ u32 zynqmp_pm_get_pmc_multi_boot_reg(void)
 
 	return ret_payload[1];
 }
+#endif
 
 int zynqmp_pm_feature(const u32 api_id)
 {
@@ -424,6 +427,104 @@ U_BOOT_DRIVER(zynqmp_power) = {
 };
 #endif
 
+static const char *const pinctrl_functions[] = {
+	"can0",
+	"can1",
+	"ethernet0",
+	"ethernet1",
+	"ethernet2",
+	"ethernet3",
+	"gemtsu0",
+	"gpio0",
+	"i2c0",
+	"i2c1",
+	"mdio0",
+	"mdio1",
+	"mdio2",
+	"mdio3",
+	"qspi0",
+	"qspi_fbclk",
+	"qspi_ss",
+	"spi0",
+	"spi1",
+	"spi0_ss",
+	"spi1_ss",
+	"sdio0",
+	"sdio0_pc",
+	"sdio0_cd",
+	"sdio0_wp",
+	"sdio1",
+	"sdio1_pc",
+	"sdio1_cd",
+	"sdio1_wp",
+	"nand0",
+	"nand0_ce",
+	"nand0_rb",
+	"nand0_dqs",
+	"ttc0_clk",
+	"ttc0_wav",
+	"ttc1_clk",
+	"ttc1_wav",
+	"ttc2_clk",
+	"ttc2_wav",
+	"ttc3_clk",
+	"ttc3_wav",
+	"uart0",
+	"uart1",
+	"usb0",
+	"usb1",
+	"swdt0_clk",
+	"swdt0_rst",
+	"swdt1_clk",
+	"swdt1_rst",
+	"pmu0",
+	"pcie0",
+	"csu0",
+	"dpaux0",
+	"pjtag0",
+	"trace0",
+	"trace0_clk",
+	"testscan0",
+};
+
+/*
+ * PM_QUERY_DATA is implemented by ATF and not the PMU firmware, so we have to
+ * emulate it in SPL. Just implement functions/pins since the groups take up a
+ * lot of rodata and are mostly superfluous.
+ */
+static int zynqmp_pm_query_data(enum pm_query_id qid, u32 arg1, u32 arg2,
+				u32 *ret_payload)
+{
+	switch (qid) {
+	case PM_QID_PINCTRL_GET_NUM_PINS:
+		ret_payload[1] = 78; /* NUM_PINS */
+		ret_payload[0] = 0;
+		return 0;
+	case PM_QID_PINCTRL_GET_NUM_FUNCTIONS:
+		ret_payload[1] = ARRAY_SIZE(pinctrl_functions);
+		ret_payload[0] = 0;
+		return 0;
+	case PM_QID_PINCTRL_GET_NUM_FUNCTION_GROUPS:
+		ret_payload[1] = 0;
+		ret_payload[0] = 0;
+		return 0;
+	case PM_QID_PINCTRL_GET_FUNCTION_NAME:
+		assert(arg1 < ARRAY_SIZE(pinctrl_functions));
+		memset(ret_payload, 0, MAX_FUNC_NAME_LEN);
+		strcpy((char *)ret_payload, pinctrl_functions[arg1]);
+		return 0;
+	case PM_QID_PINCTRL_GET_FUNCTION_GROUPS:
+	case PM_QID_PINCTRL_GET_PIN_GROUPS:
+		memset(ret_payload + 1, 0xff,
+		       sizeof(s16) * NUM_GROUPS_PER_RESP);
+		ret_payload[0] = 0;
+		return 0;
+	default:
+		ret_payload[0] = 1;
+		return 1;
+	}
+}
+
 smc_call_handler_t __data smc_call_handler;
 
 static int smc_call_legacy(u32 api_id, u32 arg0, u32 arg1, u32 arg2,
@@ -451,6 +552,38 @@ static int smc_call_legacy(u32 api_id, u32 arg0, u32 arg1, u32 arg2,
 	return (ret_payload) ? ret_payload[0] : 0;
 }
 
+static int smc_call_enhanced(u32 api_id, u32 arg0, u32 arg1, u32 arg2,
+			     u32 arg3, u32 arg4, u32 arg5, u32 *ret_payload)
+{
+	struct pt_regs regs;
+	u32 module_id = FIELD_GET(PLM_MODULE_ID_MASK, api_id);
+
+	if (module_id == 0)
+		module_id = PM_MODULE_ID;
+
+	regs.regs[0] = PM_SIP_SVC | PASS_THROUGH_FW_CMD_ID;
+	regs.regs[1] = ((u64)arg0 << 32U) |
+			FIELD_PREP(PLM_MODULE_ID_MASK, module_id) |
+			(api_id & API_ID_MASK);
+	regs.regs[2] = arg1 | ((u64)arg2 << 32);
+	regs.regs[3] = arg3 | ((u64)arg4 << 32);
+	regs.regs[4] = arg5;
+
+	smc_call(&regs);
+
+	if (ret_payload) {
+		ret_payload[0] = regs.regs[0];
+		ret_payload[1] = upper_32_bits(regs.regs[0]);
+		ret_payload[2] = (u32)regs.regs[1];
+		ret_payload[3] = upper_32_bits(regs.regs[1]);
+		ret_payload[4] = (u32)regs.regs[2];
+		ret_payload[5] = upper_32_bits((u32)regs.regs[2]);
+		ret_payload[6] = (u32)regs.regs[3];
+	}
+
+	return regs.regs[0];
+}
+
 int __maybe_unused xilinx_pm_request(u32 api_id, u32 arg0, u32 arg1, u32 arg2,
 				     u32 arg3, u32 arg4, u32 arg5, u32 *ret_payload)
 {
@@ -458,6 +591,9 @@ int __maybe_unused xilinx_pm_request(u32 api_id, u32 arg0, u32 arg1, u32 arg2,
 	      __func__, current_el(), api_id, arg0, arg1, arg2, arg3, arg4, arg5);
 
 	if (IS_ENABLED(CONFIG_XPL_BUILD) || current_el() == 3) {
+		if (CONFIG_IS_ENABLED(PINCTRL_ZYNQMP) &&
+		    api_id == PM_QUERY_DATA)
+			return zynqmp_pm_query_data(arg0, arg1, arg2, ret_payload);
 #if defined(CONFIG_ZYNQMP_IPI)
 		/*
 		 * Use fixed payload and arg size as the EL2 call. The firmware
@@ -494,6 +630,7 @@ static const struct udevice_id zynqmp_firmware_ids[] = {
 	{ .compatible = "xlnx,zynqmp-firmware", .data = (ulong)smc_call_legacy },
 	{ .compatible = "xlnx,versal-firmware", .data = (ulong)smc_call_legacy},
 	{ .compatible = "xlnx,versal-net-firmware", .data = (ulong)smc_call_legacy },
+	{ .compatible = "xlnx,versal2-firmware", .data = (ulong)smc_call_enhanced},
 	{ }
 };
 

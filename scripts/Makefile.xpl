@@ -17,7 +17,9 @@ src := $(obj)
 # Create output directory if not already present
 _dummy := $(shell [ -d $(obj) ] || mkdir -p $(obj))
 
-include $(srctree)/scripts/Kbuild.include
+include $(srctree)/scripts/Kbuild.uboot
+
+include scripts/Makefile.compiler
 
 -include include/config/auto.conf
 
@@ -86,6 +88,7 @@ include $(srctree)/config.mk
 include $(srctree)/arch/$(ARCH)/Makefile
 
 include $(srctree)/scripts/Makefile.lib
+include $(srctree)/scripts/Makefile.lib-u-boot
 
 # Enable garbage collection of un-used sections for SPL
 KBUILD_CFLAGS += -ffunction-sections -fdata-sections
@@ -254,7 +257,7 @@ MKIMAGEFLAGS_boot.bin = -T zynqmpimage -R $(srctree)/$(CONFIG_BOOT_INIT_FILE) \
 endif
 
 $(obj)/$(SPL_BIN)-align.bin: $(obj)/$(SPL_BIN).bin
-	@dd if=$< of=$@ conv=block,sync bs=4 2>/dev/null;
+	@dd if=$< of=$@ conv=sync bs=4 2>/dev/null;
 
 spl/boot.bin: $(obj)/$(SPL_BIN)-align.bin FORCE
 	$(call if_changed,mkimage)
@@ -266,11 +269,11 @@ ifneq ($(CONFIG_ARCH_EXYNOS)$(CONFIG_ARCH_S5PC1XX),)
 INPUTS-y	+= $(obj)/$(BOARD)-spl.bin
 endif
 
-ifneq ($(CONFIG_TARGET_SOCFPGA_GEN5)$(CONFIG_TARGET_SOCFPGA_ARRIA10),)
+ifneq ($(CONFIG_ARCH_SOCFPGA_GEN5)$(CONFIG_ARCH_SOCFPGA_ARRIA10),)
 INPUTS-y	+= $(obj)/$(SPL_BIN).sfp
 endif
 
-INPUTS-$(CONFIG_TARGET_SOCFPGA_SOC64) += $(obj)/u-boot-spl-dtb.hex
+INPUTS-$(CONFIG_ARCH_SOCFPGA_SOC64) += $(obj)/u-boot-spl-dtb.hex
 
 ifdef CONFIG_ARCH_SUNXI
 INPUTS-y	+= $(obj)/sunxi-spl.bin
@@ -363,7 +366,7 @@ cmd_dtoc = $(DTOC_ARGS) -c $(obj)/dts -C include/generated all
 quiet_cmd_plat = PLAT    $@
 cmd_plat = $(CC) $(c_flags) -c $< -o $(filter-out $(PHONY),$@)
 
-$(obj)/dts/dt-%.o: $(obj)/dts/dt-%.c $(platdata-hdr)
+$(obj)/dts/dt-%.o: $(obj)/dts/dt-%.c $(platdata-hdr) FORCE
 	$(call if_changed,plat)
 
 # Don't use dts_dir here, since it forces running this expensive rule every time
@@ -430,7 +433,7 @@ ifneq ($(CONFIG_$(PHASE_)TEXT_BASE),)
 LDFLAGS_$(SPL_BIN) += -Ttext $(CONFIG_$(PHASE_)TEXT_BASE)
 endif
 
-ifdef CONFIG_TARGET_SOCFPGA_ARRIA10
+ifdef CONFIG_ARCH_SOCFPGA_ARRIA10
 MKIMAGEFLAGS_$(SPL_BIN).sfp = -T socfpgaimage_v1
 else
 MKIMAGEFLAGS_$(SPL_BIN).sfp = -T socfpgaimage
@@ -455,13 +458,14 @@ $(obj)/sunxi-spl.bin: $(obj)/$(SPL_BIN).bin FORCE
 
 quiet_cmd_sunxi_spl_image_builder = SUNXI_SPL_IMAGE_BUILDER $@
 cmd_sunxi_spl_image_builder = $(objtree)/tools/sunxi-spl-image-builder \
+				$(if $(CONFIG_SUN50I_GEN_H6),--soc=h6) \
 				-c $(CONFIG_NAND_SUNXI_SPL_ECC_STRENGTH)/$(CONFIG_NAND_SUNXI_SPL_ECC_SIZE) \
 				-p $(CONFIG_SYS_NAND_PAGE_SIZE) \
 				-o $(CONFIG_SYS_NAND_OOBSIZE) \
 				-u $(CONFIG_NAND_SUNXI_SPL_USABLE_PAGE_SIZE) \
 				-e $(CONFIG_SYS_NAND_BLOCK_SIZE) \
 				-s -b $< $@
-$(obj)/sunxi-spl-with-ecc.bin: $(obj)/sunxi-spl.bin
+$(obj)/sunxi-spl-with-ecc.bin: $(obj)/sunxi-spl.bin FORCE
 	$(call if_changed,sunxi_spl_image_builder)
 
 
@@ -493,9 +497,9 @@ quiet_cmd_keep_syms_lto_cc = KSLCC   $@
       cmd_keep_syms_lto_cc = \
 	$(CC) $(filter-out $(LTO_CFLAGS),$(c_flags)) -c -o $@ $<
 
-$(u-boot-spl-keep-syms-lto_c): $(u-boot-spl-main) $(u-boot-spl-platdata)
+$(u-boot-spl-keep-syms-lto_c): $(u-boot-spl-main) $(u-boot-spl-platdata) FORCE
 	$(call if_changed,keep_syms_lto)
-$(u-boot-spl-keep-syms-lto): $(u-boot-spl-keep-syms-lto_c)
+$(u-boot-spl-keep-syms-lto): $(u-boot-spl-keep-syms-lto_c) FORCE
 	$(call if_changed,keep_syms_lto_cc)
 else
 u-boot-spl-keep-syms-lto :=
@@ -545,11 +549,11 @@ $(sort $(u-boot-spl-init) $(u-boot-spl-main)): $(u-boot-spl-dirs) ;
 
 PHONY += $(u-boot-spl-dirs)
 $(u-boot-spl-dirs): $(u-boot-spl-platdata) prepare
-	$(Q)$(MAKE) $(build)=$@
+	$(Q)$(MAKE) $(build)=$@ need-builtin=1
 
 PHONY += prepare
 prepare:
-	$(Q)$(MAKE) $(build)=$(obj)/.
+	$(Q)$(MAKE) $(build)=$(obj)/. need-builtin=1
 
 quiet_cmd_cpp_lds = LDS     $@
 cmd_cpp_lds = $(CPP) -Wp,-MD,$(depfile) $(cpp_flags) $(LDPPFLAGS) -ansi \
@@ -572,7 +576,7 @@ PHONY += FORCE
 FORCE:
 
 $(obj)/dts/dt-$(SPL_NAME).dtb: dts/dt.dtb
-	$(Q)$(MAKE) $(build)=$(obj)/dts spl_dtbs
+	$(Q)$(MAKE) $(build)=$(obj)/dts spl_dtbs need-builtin=1
 
 ifeq ($(CONFIG_OF_UPSTREAM),y)
 ifeq ($(CONFIG_ARM64),y)
@@ -594,7 +598,7 @@ $(sort $(dir $(SHRUNK_ARCH_DTB))):
 	$(shell [ -d $@ ] || mkdir -p $@)
 
 .SECONDEXPANSION:
-$(SHRUNK_ARCH_DTB): $$(patsubst $(obj)/dts/%, $(dt_dir)/%, $$@) $(dir $(SHRUNK_ARCH_DTB))
+$(SHRUNK_ARCH_DTB): $$(patsubst $(obj)/dts/%, $(dt_dir)/%, $$@) $(dir $(SHRUNK_ARCH_DTB)) FORCE
 	$(call if_changed,fdtgrep)
 
 targets += $(SPL_OF_LIST_TARGETS)

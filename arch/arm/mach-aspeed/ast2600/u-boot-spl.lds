@@ -42,6 +42,7 @@ SECTIONS
 	. = ALIGN(4);
 	__u_boot_list : {
 		KEEP(*(SORT(__u_boot_list*)));
+		. = ALIGN(8);
 	} > .nor
 
 	. = ALIGN(4);
@@ -51,16 +52,14 @@ SECTIONS
 		__binman_sym_end = .;
 	} > .nor
 
-	. = ALIGN(4);
+	/*
+	 * These platforms enable CONFIG_POSITION_INDEPENDENT and so need
+	 * these names. The always however hold the same value.
+	 */
+	__rel_dyn_start = .;
+	__rel_dyn_end = .;
 
 	__image_copy_end = .;
-
-	.rel.dyn : {
-		__rel_dyn_start = .;
-		*(.rel*)
-		__rel_dyn_end = .;
-	} > .nor
-
 	_end = .;
 	_image_binary_end = .;
 
@@ -78,6 +77,9 @@ SECTIONS
 ASSERT(__image_copy_end - __image_copy_start <= (IMAGE_MAX_SIZE), \
 	"SPL image too big");
 #endif
+
+ASSERT(_image_binary_end % 8 == 0, \
+       "_image_binary_end must be 8-byte aligned for device tree");
 
 #if defined(CONFIG_SPL_BSS_MAX_SIZE)
 ASSERT(__bss_end - __bss_start <= (CONFIG_SPL_BSS_MAX_SIZE), \

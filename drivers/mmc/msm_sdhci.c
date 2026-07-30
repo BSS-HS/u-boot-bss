@@ -13,7 +13,6 @@
 #include <reset.h>
 #include <sdhci.h>
 #include <wait_bit.h>
-#include <asm/global_data.h>
 #include <asm/io.h>
 #include <linux/bitops.h>
 #include <power/regulator.h>
@@ -36,6 +35,11 @@
 
 #define CORE_VENDOR_SPEC_POR_VAL 0xa9c
 
+#define CORE_DLL_PDN		BIT(29)
+#define CORE_DLL_RST		BIT(30)
+
+#define MHZ(X) ((X) * 1000000UL)
+
 struct msm_sdhc_plat {
 	struct mmc_config cfg;
 	struct mmc mmc;
@@ -51,11 +55,10 @@ struct msm_sdhc {
 struct msm_sdhc_variant_info {
 	bool mci_removed;
 
+	u32 core_dll_config;
 	u32 core_vendor_spec;
 	u32 core_vendor_spec_capabilities0;
 };
-
-DECLARE_GLOBAL_DATA_PTR;
 
 static int msm_sdc_clk_init(struct udevice *dev)
 {
@@ -68,8 +71,7 @@ static int msm_sdc_clk_init(struct udevice *dev)
 
 	var_info = (void *)dev_get_driver_data(dev);
 
-	ret = ofnode_read_u32(node, "clock-frequency", (uint *)(&clk_rate));
-	if (ret)
+	if (ofnode_read_u32(node, "max-frequency", (uint *)(&clk_rate)))
 		clk_rate = 201500000;
 
 	ret = clk_get_bulk(dev, &prv->clks);
@@ -114,6 +116,9 @@ static int msm_sdc_clk_init(struct udevice *dev)
 		return -EINVAL;
 	}
 
+	/* This is the base clock sdhci core will use to configure the SDCLK */
+	prv->host.max_clk = clk_rate;
+
 	writel_relaxed(CORE_VENDOR_SPEC_POR_VAL,
 		       prv->host.ioaddr + var_info->core_vendor_spec);
 
@@ -145,6 +150,34 @@ static int msm_sdc_mci_init(struct msm_sdhc *prv)
 
 	return 0;
 }
+
+static int msm_sdhci_config_dll(struct sdhci_host *host, u32 clock, bool enable)
+{
+	struct udevice *dev = mmc_to_dev(host->mmc);
+	const struct msm_sdhc_variant_info *var_info = (void *)dev_get_driver_data(dev);
+	u32 config;
+
+	if (enable && clock < MHZ(100)) {
+		/*
+		 * DLL is not required for clock <= 100MHz
+		 * Thus, make sure DLL is disabled when not required
+		 */
+		config = readl(host->ioaddr + var_info->core_dll_config);
+		config |= CORE_DLL_RST;
+		writel(config, host->ioaddr + var_info->core_dll_config);
+
+		config = readl(host->ioaddr + var_info->core_dll_config);
+		config |= CORE_DLL_PDN;
+		writel(config, host->ioaddr + var_info->core_dll_config);
+	}
+
+	return 0;
+}
+
+struct sdhci_ops msm_sdhci_ops = {
+	.config_dll = &msm_sdhci_config_dll,
+	.set_control_reg = &sdhci_set_control_reg,
+};
 
 static int msm_sdc_probe(struct udevice *dev)
 {
@@ -220,6 +253,7 @@ static int msm_sdc_probe(struct udevice *dev)
 
 	host->mmc = &plat->mmc;
 	host->mmc->dev = dev;
+	host->ops = &msm_sdhci_ops;
 	ret = sdhci_setup_cfg(&plat->cfg, host, 0, 0);
 	if (ret)
 		return ret;
@@ -285,6 +319,7 @@ static int msm_sdc_bind(struct udevice *dev)
 static const struct msm_sdhc_variant_info msm_sdhc_mci_var = {
 	.mci_removed = false,
 
+	.core_dll_config = 0x100,
 	.core_vendor_spec = 0x10c,
 	.core_vendor_spec_capabilities0 = 0x11c,
 };
@@ -292,6 +327,7 @@ static const struct msm_sdhc_variant_info msm_sdhc_mci_var = {
 static const struct msm_sdhc_variant_info msm_sdhc_v5_var = {
 	.mci_removed = true,
 
+	.core_dll_config = 0x200,
 	.core_vendor_spec = 0x20c,
 	.core_vendor_spec_capabilities0 = 0x21c,
 };

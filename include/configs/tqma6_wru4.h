@@ -1,10 +1,12 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) 2015 Stefan Roese <sr@denx.de>
  */
 
 #ifndef __CONFIG_TQMA6_WRU4_H
 #define __CONFIG_TQMA6_WRU4_H
+
+#include "tqma6.h"
 
 /* Ethernet */
 #define CFG_FEC_MXC_PHYADDR		0x01

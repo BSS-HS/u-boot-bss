@@ -3,6 +3,7 @@ menu "SPI Flash Support"
 config DM_SPI_FLASH
 	bool "Enable Driver Model for SPI flash"
 	depends on DM_SPI
+	select DEVRES
 	imply SPI_FLASH
 	help
 	  Enable driver model for SPI flash. This SPI flash interface
@@ -156,6 +157,11 @@ config SPI_FLASH_ATMEL
 	help
 	  Add support for various Atmel SPI flash chips (AT45xxx and AT25xxx)
 
+config SPI_FLASH_DOSILICON
+	bool "Dosilicon SPI flash support"
+	help
+	  Add support for various Dosilicon SPI flash chips (DS25xxx)
+
 config SPI_FLASH_EON
 	bool "EON SPI flash support"
 	help
@@ -214,6 +220,7 @@ config SPI_FLASH_MT35XU
 
 config SPI_FLASH_SST
 	bool "SST SPI flash support"
+	depends on SPI_FLASH_LOCK
 	help
 	  Add support for various SST SPI flash chips (SST25xxx)
 
@@ -290,5 +297,11 @@ config SPL_SPI_FLASH_MTD
           Enable the MTD support for the SPI flash layer in SPL.
 
 	  If unsure, say N
+
+config SPI_FRAM_FUJITSU
+	bool "Fujitsu SPI FRAM support"
+	help
+	  Add support for the Fujitsu MB85RS256TY FRAM chip. It's treated the same
+	  as SPI NOR flash at the moment.
 
 endmenu # menu "SPI Flash Support"

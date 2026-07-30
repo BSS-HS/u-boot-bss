@@ -5,6 +5,7 @@ variables:
   DEFAULT_AMD64_TAG: "amd64"
   DEFAULT_FAST_TAG: "fast"
   MIRROR_DOCKER: docker.io
+  SAGE_LAB: ""
   SJG_LAB: ""
   PLATFORM: linux/amd64,linux/arm64
 
@@ -18,19 +19,20 @@ workflow:
 
 # Grab our configured image.  The source for this is found
 # in the u-boot tree at tools/docker/Dockerfile
-image: ${MIRROR_DOCKER}/trini/u-boot-gitlab-ci-runner:jammy-20251013-26Nov2025
+image: ${MIRROR_DOCKER}/trini/u-boot-gitlab-ci-runner:noble-20251013-23Jan2026
 
 # We run some tests in different order, to catch some failures quicker.
 stages:
   - testsuites
   - test.py
+  - sage-lab
   - sjg-lab
   - world build
 
 .buildman_and_testpy_template: &buildman_and_testpy_dfn
   stage: test.py
   retry: 2 # QEMU may be too slow, etc.
-  needs: [ "Run binman, buildman, dtoc, Kconfig and patman testsuites" ]
+  needs: [ "Build allyesconfig, tools-only and envtools" ]
   before_script:
     # Clone uboot-test-hooks
     - git config --global --add safe.directory "${CI_PROJECT_DIR}"
@@ -59,6 +61,7 @@ stages:
       . /tmp/venv/bin/activate;
       pip install -r test/py/requirements.txt -r tools/binman/requirements.txt
         -r tools/buildman/requirements.txt -r tools/u_boot_pylib/requirements.txt
+        setuptools
 
   after_script:
     - cp -v /tmp/${TEST_PY_BD}/*.{html,css,xml} .
@@ -151,6 +154,7 @@ build all platforms in a single job:
       . /tmp/venv/bin/activate;
       pip install -r tools/binman/requirements.txt
         -r tools/buildman/requirements.txt
+        setuptools
     - ret=0;
       git config --global --add safe.directory "${CI_PROJECT_DIR}";
       ./tools/buildman/buildman -o /tmp -PEWM -x xtensa || ret=$?;
@@ -191,14 +195,18 @@ Check for configs without MAINTAINERS entry:
     - ./tools/buildman/buildman --maintainer-check
 
 # Ensure host tools build
-Build tools-only and envtools:
+Build allyesconfig, tools-only and envtools:
   extends: .testsuites
   script:
-    - make tools-only_config tools-only -j$(nproc);
+    # Allow pipefail because of how we use 'yes' here.
+    - set +o pipefail;
+      yes 0 | make allyesconfig oldconfig all -j$(nproc);
+      make mrproper;
+      make tools-only_config tools-only -j$(nproc);
       make mrproper;
       make tools-only_config envtools -j$(nproc)
 
-Run binman, buildman, dtoc, Kconfig and patman testsuites:
+Run binman, buildman, dtoc and Kconfig testsuites:
   extends: .testsuites
   tags:
     - ${DEFAULT_AMD64_TAG}
@@ -210,8 +218,9 @@ Run binman, buildman, dtoc, Kconfig and patman testsuites:
       python3 -m venv /tmp/venv;
       . /tmp/venv/bin/activate;
       pip install -r test/py/requirements.txt -r tools/binman/requirements.txt
-        -r tools/buildman/requirements.txt -r tools/patman/requirements.txt
-        -r tools/u_boot_pylib/requirements.txt;
+        -r tools/buildman/requirements.txt
+        -r tools/u_boot_pylib/requirements.txt
+        -r scripts/dtc/pylibfdt/requirements.txt;
       export UBOOT_TRAVIS_BUILD_DIR=/tmp/tools-only;
       export PYTHONPATH="${UBOOT_TRAVIS_BUILD_DIR}/scripts/dtc/pylibfdt";
       export PATH="${UBOOT_TRAVIS_BUILD_DIR}/scripts/dtc:${PATH}";
@@ -225,7 +234,6 @@ Run binman, buildman, dtoc, Kconfig and patman testsuites:
       ./tools/binman/binman ${TOOLPATH} test -T;
       ./tools/buildman/buildman -t;
       ./tools/dtoc/dtoc -t;
-      ./tools/patman/patman test;
       make testconfig
 
 # Check for any pylint regressions
@@ -236,8 +244,9 @@ Run pylint:
     - python3 -m venv /tmp/venv
     - . /tmp/venv/bin/activate
     - pip install -r test/py/requirements.txt -r tools/binman/requirements.txt
-        -r tools/buildman/requirements.txt -r tools/patman/requirements.txt
-        -r tools/u_boot_pylib/requirements.txt asteval pylint==3.3.4 pyopenssl
+        -r tools/buildman/requirements.txt
+        -r tools/u_boot_pylib/requirements.txt
+        -r scripts/dtc/pylibfdt/requirements.txt asteval pylint==3.3.4 pyopenssl
     - export PATH=${PATH}:~/.local/bin
     - echo "[MASTER]" >> .pylintrc
     - echo "load-plugins=pylint.extensions.docparams" >> .pylintrc
@@ -267,6 +276,8 @@ sandbox test.py:
   variables:
     TEST_PY_BD: "sandbox"
     TEST_PY_EXTRA: "--timing"
+    # addr2line in Ubuntu 'Noble' and later are broken.
+    TEST_PY_TEST_SPEC: "not event_dump"
   <<: *buildman_and_testpy_dfn
 
 sandbox with clang test.py:
@@ -278,7 +289,9 @@ sandbox with clang test.py:
     - ${HOST}
   variables:
     TEST_PY_BD: "sandbox"
-    OVERRIDE: "-O clang-18"
+    OVERRIDE: "-O clang-20"
+    # addr2line in Ubuntu 'Noble' and later are broken.
+    TEST_PY_TEST_SPEC: "not event_dump"
   <<: *buildman_and_testpy_dfn
 
 sandbox64 test.py:
@@ -301,7 +314,7 @@ sandbox64 with clang test.py:
     - ${HOST}
   variables:
     TEST_PY_BD: "sandbox64"
-    OVERRIDE: "-O clang-18"
+    OVERRIDE: "-O clang-20"
   <<: *buildman_and_testpy_dfn
 
 sandbox64_lwip test.py:
@@ -379,6 +392,7 @@ qemu_arm64 test.py:
   variables:
     TEST_PY_BD: "qemu_arm64"
     TEST_PY_TEST_SPEC: "not sleep"
+    OVERRIDE: "-a CONFIG_SEMIHOSTING=y"
   <<: *buildman_and_testpy_dfn
 
 qemu_arm64_lwip test.py:
@@ -406,6 +420,12 @@ qemu_m68k test.py:
     TEST_PY_ID: "--id qemu"
     TEST_PY_TEST_SPEC: "not sleep and not efi"
     OVERRIDE: "-a CONFIG_M68K_QEMU=y -a ~CONFIG_MCFTMR"
+  <<: *buildman_and_testpy_dfn
+
+qemu_m68k_virt test.py:
+  variables:
+    TEST_PY_BD: "qemu-m68k"
+    TEST_PY_TEST_SPEC: "not sleep"
   <<: *buildman_and_testpy_dfn
 
 qemu_malta test.py:
@@ -600,6 +620,9 @@ coreboot test.py:
     TEST_PY_ID: "--id qemu"
   <<: *buildman_and_testpy_dfn
 
+# Add sage-lab stage
+include: .gitlab-ci-sage-lab.yml
+
 .sjg_lab_template: &sjg_lab_dfn
   stage: sjg-lab
   rules:
@@ -773,5 +796,5 @@ vf2:
 qemu-x86_64:
   variables:
     ROLE: qemu-x86_64
-    TEST_PY_TEST_SPEC: "and not sleep"
+    TEST_PY_TEST_SPEC: "not sleep"
   <<: *sjg_lab_dfn

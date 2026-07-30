@@ -27,8 +27,6 @@
 #define board_is_am64x_skevm() (board_ti_k3_is("AM64-SKEVM") || \
 				board_ti_k3_is("AM64B-SKEVM"))
 
-DECLARE_GLOBAL_DATA_PTR;
-
 struct efi_fw_image fw_images[] = {
 	{
 		.image_type_id = AM64X_SK_TIBOOT3_IMAGE_GUID,
@@ -138,7 +136,7 @@ static struct ti_fdt_map ti_am64_evm_fdt_map[] = {
 
 static void setup_board_eeprom_env(void)
 {
-	char *name = "am64x_gpevm";
+	char *name = NULL;
 
 	if (do_board_detect())
 		goto invalid_eeprom;

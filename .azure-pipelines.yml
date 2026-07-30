@@ -2,7 +2,7 @@ variables:
   windows_vm: windows-2022
   ubuntu_vm: ubuntu-24.04
   macos_vm: macOS-14
-  ci_runner_image: trini/u-boot-gitlab-ci-runner:jammy-20251013-26Nov2025
+  ci_runner_image: trini/u-boot-gitlab-ci-runner:noble-20251013-23Jan2026
   # Ensure we do a shallow clone
   Agent.Source.Git.ShallowFetchDepth: 1
   # Add '-u 0' options for Azure pipelines, otherwise we get "permission
@@ -128,8 +128,8 @@ stages:
       - script: |
           ./tools/buildman/buildman --maintainer-check
 
-  - job: tools_only
-    displayName: 'Ensure host tools and env tools build'
+  - job: allyesconfig_and_tools
+    displayName: 'Ensure allyesconfig, tools-only and envtools build'
     pool:
       vmImage: $(ubuntu_vm)
     container:
@@ -137,29 +137,34 @@ stages:
       options: $(container_option)
     steps:
       - script: |
+          # Allow pipefail because of how we use 'yes' here.
+          set +o pipefail;
+          yes 0 | make allyesconfig oldconfig all -j$(nproc)
+          make mrproper
           make tools-only_config tools-only -j$(nproc)
           make mrproper
           make tools-only_config envtools -j$(nproc)
 
   - job: utils
-    displayName: 'Run binman, buildman, dtoc, Kconfig and patman testsuites'
+    displayName: 'Run binman, buildman, dtoc and Kconfig testsuites'
     pool:
       vmImage: $(ubuntu_vm)
+    container:
+      image: $(ci_runner_image)
+      options: $(container_option)
     steps:
       - script: |
-          cat << "EOF" > build.sh
-          cd $(work_dir)
+          # Configure git
           git config --global user.name "Azure Pipelines"
           git config --global user.email bmeng.cn@gmail.com
-          git config --global --add safe.directory $(work_dir)
           export USER=azure
           python3 -m venv /tmp/venv
           . /tmp/venv/bin/activate
           pip install -r test/py/requirements.txt \
             -r tools/binman/requirements.txt \
             -r tools/buildman/requirements.txt \
-            -r tools/patman/requirements.txt \
-            -r tools/u_boot_pylib/requirements.txt
+            -r tools/u_boot_pylib/requirements.txt \
+            -r scripts/dtc/pylibfdt/requirements.txt
           export UBOOT_TRAVIS_BUILD_DIR=/tmp/tools-only
           export PYTHONPATH=${UBOOT_TRAVIS_BUILD_DIR}/scripts/dtc/pylibfdt
           export PATH=${UBOOT_TRAVIS_BUILD_DIR}/scripts/dtc:${PATH}
@@ -172,13 +177,7 @@ stages:
           COVERAGE_FILE=/tmp/.coverage ./tools/binman/binman ${TOOLPATH} test -T
           ./tools/buildman/buildman -t
           ./tools/dtoc/dtoc -t
-          ./tools/patman/patman test
           make O=${UBOOT_TRAVIS_BUILD_DIR} testconfig
-          EOF
-          cat build.sh
-          # We cannot use "container" like other jobs above, as buildman
-          # seems to hang forever with pre-configured "container" environment
-          docker run -v $PWD:$(work_dir) $(ci_runner_image) /bin/bash $(work_dir)/build.sh
 
   - job: pylint
     displayName: Check for any pylint regressions
@@ -196,8 +195,8 @@ stages:
           pip install -r test/py/requirements.txt \
             -r tools/binman/requirements.txt \
             -r tools/buildman/requirements.txt \
-            -r tools/patman/requirements.txt \
             -r tools/u_boot_pylib/requirements.txt \
+            -r scripts/dtc/pylibfdt/requirements.txt \
             asteval pylint==3.3.4 pyopenssl
           export PATH=${PATH}:~/.local/bin
           echo "[MASTER]" >> .pylintrc
@@ -312,6 +311,7 @@ stages:
             -r tools/buildman/requirements.txt \
             -r test/py/requirements.txt \
             -r tools/u_boot_pylib/requirements.txt \
+            setuptools \
             pytest-azurepipelines
           tools/buildman/buildman -o \${UBOOT_TRAVIS_BUILD_DIR} -w -E -W -e --board \${TEST_PY_BD} \${OVERRIDE}
           cp /opt/grub/grub_x86.efi \${UBOOT_TRAVIS_BUILD_DIR}/
@@ -391,22 +391,26 @@ stages:
         sandbox:
           TEST_PY_BD: "sandbox"
           TEST_PY_EXTRA: "--timing"
+          # addr2line in Ubuntu 'Noble' and later are broken.
+          TEST_PY_TEST_SPEC: "not event_dump"
         sandbox_asan:
           TEST_PY_BD: "sandbox"
           OVERRIDE: "-a ASAN"
           TEST_PY_TEST_SPEC: "version"
         sandbox_clang:
           TEST_PY_BD: "sandbox"
-          OVERRIDE: "-O clang-18"
+          OVERRIDE: "-O clang-20"
+          # addr2line in Ubuntu 'Noble' and later are broken.
+          TEST_PY_TEST_SPEC: "not event_dump"
         sandbox_clang_asan:
           TEST_PY_BD: "sandbox"
-          OVERRIDE: "-O clang-18 -a ASAN"
+          OVERRIDE: "-O clang-20 -a ASAN"
           TEST_PY_TEST_SPEC: "version"
         sandbox64:
           TEST_PY_BD: "sandbox64"
         sandbox64_clang:
           TEST_PY_BD: "sandbox64"
-          OVERRIDE: "-O clang-18"
+          OVERRIDE: "-O clang-20"
         sandbox64_lwip:
           TEST_PY_BD: "sandbox64_lwip"
         sandbox_spl:
@@ -503,6 +507,7 @@ stages:
         qemu_arm64:
           TEST_PY_BD: "qemu_arm64"
           TEST_PY_TEST_SPEC: "not sleep"
+          OVERRIDE: "-a CONFIG_SEMIHOSTING=y"
         qemu_arm64_lwip:
           TEST_PY_BD: "qemu_arm64_lwip"
           TEST_PY_TEST_SPEC: "test_net_dhcp or test_net_ping or test_net_tftpboot"
@@ -518,6 +523,9 @@ stages:
           TEST_PY_ID: "--id qemu"
           TEST_PY_TEST_SPEC: "not sleep and not efi"
           OVERRIDE: "-a CONFIG_M68K_QEMU=y -a ~CONFIG_MCFTMR"
+        qemu_m68k_virt:
+          TEST_PY_BD: "qemu-m68k"
+          TEST_PY_TEST_SPEC: "not sleep"
         qemu_malta:
           TEST_PY_BD: "malta"
           TEST_PY_ID: "--id qemu"
@@ -652,6 +660,9 @@ stages:
     displayName: 'Build the World'
     pool:
       vmImage: $(ubuntu_vm)
+    container:
+      image: $(ci_runner_image)
+      options: $(container_option)
     strategy:
       # We split the world up in to 10 jobs as we can have at most 10
       # parallel jobs going on the free tier of Azure.
@@ -716,18 +727,13 @@ stages:
           BUILDMAN: $(aarch64_catch_all)
     steps:
       - script: |
-          cat << EOF > build.sh
           set -ex
-          cd ${WORK_DIR}
-          # make environment variables available as tests are running inside a container
-          export BUILDMAN="${BUILDMAN}"
-          git config --global --add safe.directory ${WORK_DIR}
+          # Setup venv, perform build
           python3 -m venv /tmp/venv
           . /tmp/venv/bin/activate
           pip install -r tools/binman/requirements.txt \
-            -r tools/buildman/requirements.txt
-          EOF
-          cat << "EOF" >> build.sh
+            -r tools/buildman/requirements.txt \
+            setuptools
           if [[ "${BUILDMAN}" != "" ]]; then
               ret=0;
               tools/buildman/buildman -o /tmp -PEWM ${BUILDMAN} ${OVERRIDE} || ret=$?;
@@ -736,6 +742,3 @@ stages:
                   exit $ret;
               fi;
           fi
-          EOF
-          cat build.sh
-          docker run -v $PWD:$(work_dir) $(ci_runner_image) /bin/bash $(work_dir)/build.sh

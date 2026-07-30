@@ -606,7 +606,7 @@ static const struct mtk_pin_field_calc mt7988_pin_r1_range[] = {
 	PIN_FIELD_BASE(83, 83, IOCFG_TR_BASE, 0x90, 0x10, 15, 1),
 };
 
-static const struct mtk_pin_reg_calc mt7988_reg_cals[] = {
+static const struct mtk_pin_reg_calc mt7988_reg_cals[PINCTRL_PIN_REG_MAX] = {
 	[PINCTRL_PIN_REG_MODE] = MTK_RANGE(mt7988_pin_mode_range),
 	[PINCTRL_PIN_REG_DIR] = MTK_RANGE(mt7988_pin_dir_range),
 	[PINCTRL_PIN_REG_DI] = MTK_RANGE(mt7988_pin_di_range),
@@ -1250,6 +1250,7 @@ static const struct mtk_pinctrl_soc mt7988_data = {
 	.gpio_mode = 0,
 	.base_names = mt7988_pinctrl_register_base_names,
 	.nbase_names = ARRAY_SIZE(mt7988_pinctrl_register_base_names),
+	.rev = MTK_PINCTRL_V1,
 	.base_calc = 1,
 };
 

@@ -4,7 +4,7 @@
  *
  * ADI SC5XX MUSB "glue layer"
  *
- * Written and/or maintained by Timesys Corporation
+ * Written by Timesys Corporation
  *
  * Loosely ported from Linux driver:
  * Author: Nathan Barrett-Morrison <nathan.morrison@timesys.com>
@@ -188,7 +188,7 @@ static const struct udevice_id sc5xx_musb_ids[] = {
 	{ }
 };
 
-U_BOOT_DRIVER(usb_musb) = {
+U_BOOT_DRIVER(musb_sc5xx) = {
 	.name		= "sc5xx-musb",
 	.id		= UCLASS_USB,
 	.of_match	= sc5xx_musb_ids,

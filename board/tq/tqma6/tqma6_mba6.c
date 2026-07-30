@@ -1,10 +1,12 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2012 Freescale Semiconductor, Inc.
  * Author: Fabio Estevam <fabio.estevam@freescale.com>
  *
- * Copyright (C) 2013, 2014 TQ-Systems (ported SabreSD to TQMa6x)
- * Author: Markus Niebel <markus.niebel@tq-group.com>
+ * ported SabreSD to TQMa6x
+ * Copyright (c) 2013-2014 TQ-Systems GmbH <u-boot@ew.tq-group.com>,
+ * D-82229 Seefeld, Germany.
+ * Author: Markus Niebel
  */
 
 #include <init.h>
@@ -29,7 +31,7 @@
 #include <mmc.h>
 #include <netdev.h>
 
-#include "tqma6_bb.h"
+#include "../common/tq_bb.h"
 
 #if defined(CONFIG_TQMA6Q)
 
@@ -74,7 +76,7 @@ int board_mmc_get_env_dev(int devno)
 	 * the boot device first ...
 	 * Note: SDHC3 == idx2
 	 */
-	return (2 == devno) ? 0 : 1;
+	return (devno == 2) ? 0 : 1;
 }
 
 int board_phy_config(struct phy_device *phydev)
@@ -124,34 +126,20 @@ int board_phy_config(struct phy_device *phydev)
 	return 0;
 }
 
-int tqma6_bb_board_early_init_f(void)
-{
-	return 0;
-}
-
-int tqma6_bb_board_init(void)
+int tq_bb_board_init(void)
 {
 	mba6_setup_iomuxc_enet();
 
 	return 0;
 }
 
-int tqma6_bb_board_late_init(void)
-{
-	return 0;
-}
-
-const char *tqma6_bb_get_boardname(void)
+const char *tq_bb_get_boardname(void)
 {
 	return "MBa6x";
 }
 
-/*
- * Device Tree Support
- */
-#if defined(CONFIG_OF_BOARD_SETUP) && defined(CONFIG_OF_LIBFDT)
-void tqma6_bb_ft_board_setup(void *blob, struct bd_info *bd)
+int tq_bb_board_late_init(void)
 {
- /* TBD */
+	board_late_mmc_env_init();
+	return 0;
 }
-#endif /* defined(CONFIG_OF_BOARD_SETUP) && defined(CONFIG_OF_LIBFDT) */

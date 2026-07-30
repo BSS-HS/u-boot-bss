@@ -80,7 +80,7 @@ static table_entry_t imx8image_core_entries[] = {
 static table_entry_t imx8image_sector_size[] = {
 	{0x400,		"sd",			"sd/emmc",},
 	{0x400,		"emmc_fastboot",	"emmc fastboot",},
-	{0x400,		"fspi",			"flexspi",	},
+	{0x1000,	"fspi",			"flexspi",	},
 	{0x1000,	"nand_4k",		"nand 4K",	},
 	{0x2000,	"nand_8k",		"nand 8K",	},
 	{0x4000,	"nand_16k",		"nand 16K",	},
@@ -815,7 +815,7 @@ static int get_container_image_start_pos(image_t *image_stack, uint32_t align, u
 
 	p = calloc(1, size);
 	if (!p) {
-		fprintf(stderr, "Fail to alloc %lx memory\n", size);
+		fprintf(stderr, "Fail to alloc %zx memory\n", size);
 		exit(EXIT_FAILURE);
 	}
 

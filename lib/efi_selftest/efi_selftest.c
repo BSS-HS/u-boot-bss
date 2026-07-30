@@ -16,7 +16,7 @@
 
 const struct efi_system_table *st_systable;
 const struct efi_boot_services *st_boottime;
-static const struct efi_runtime_services *runtime;
+const struct efi_runtime_services *st_runtime;
 static efi_handle_t handle;
 static u16 reset_message[] = u"Selftest completed";
 static int *setup_status;
@@ -259,7 +259,7 @@ efi_status_t EFIAPI efi_selftest(efi_handle_t image_handle,
 
 	st_systable = systab;
 	st_boottime = st_systable->boottime;
-	runtime = st_systable->runtime;
+	st_runtime = st_systable->runtime;
 	handle = image_handle;
 	con_out = st_systable->con_out;
 	con_in = st_systable->con_in;
@@ -284,7 +284,7 @@ efi_status_t EFIAPI efi_selftest(efi_handle_t image_handle,
 			 * implemented we should call
 			 *   st_boottime->exit(image_handle, EFI_SUCCESS, 0, NULL);
 			 * here, cf.
-			 * https://lists.denx.de/pipermail/u-boot/2017-October/308720.html
+			 * https://patch.msgid.link/44453b06-5a09-ee3c-0a6a-b54bee9020e4@gmx.de/
 			 */
 			return EFI_SUCCESS;
 		}
@@ -347,8 +347,8 @@ efi_status_t EFIAPI efi_selftest(efi_handle_t image_handle,
 	efi_st_get_key();
 
 	if (IS_ENABLED(CONFIG_EFI_HAVE_RUNTIME_RESET)) {
-		runtime->reset_system(EFI_RESET_WARM, EFI_NOT_READY,
-				      sizeof(reset_message), reset_message);
+		st_runtime->reset_system(EFI_RESET_WARM, EFI_NOT_READY,
+					 sizeof(reset_message), reset_message);
 	} else {
 		efi_restore_gd();
 		do_reset(NULL, 0, 0, NULL);

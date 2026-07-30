@@ -23,6 +23,7 @@
 #define PHY_ID_VSC8502			0x00070630
 #define PHY_ID_VSC8540                  0x00070760
 #define PHY_ID_VSC8541                  0x00070770
+#define PHY_ID_VSC8572			0x000704d0
 #define PHY_ID_VSC8574			0x000704a0
 #define PHY_ID_VSC8584                  0x000707c0
 
@@ -1371,6 +1372,9 @@ static int vsc8541_config(struct phy_device *phydev)
 	case PHY_INTERFACE_MODE_GMII:
 	case PHY_INTERFACE_MODE_RMII:
 	case PHY_INTERFACE_MODE_RGMII:
+	case PHY_INTERFACE_MODE_RGMII_TXID:
+	case PHY_INTERFACE_MODE_RGMII_RXID:
+	case PHY_INTERFACE_MODE_RGMII_ID:
 		retval = vsc8531_vsc8541_mac_config(phydev);
 		if (retval != 0)
 			return retval;
@@ -1385,7 +1389,7 @@ static int vsc8541_config(struct phy_device *phydev)
 		return -EINVAL;
 	}
 	/* Default RMII Clk Output to 0=OFF/1=ON  */
-	rmii_clk_out = 0;
+	rmii_clk_out = 1;
 
 	retval = vsc8531_vsc8541_clk_skew_config(phydev);
 	if (retval != 0)
@@ -1605,6 +1609,16 @@ U_BOOT_PHY_DRIVER(vsc8541) = {
 	.mask = 0x000ffff0,
 	.features = PHY_GBIT_FEATURES,
 	.config = &vsc8541_config,
+	.startup = &mscc_startup,
+	.shutdown = &genphy_shutdown,
+};
+
+U_BOOT_PHY_DRIVER(vsc8572) = {
+	.name = "Microsemi VSC8572",
+	.uid = PHY_ID_VSC8572,
+	.mask = 0x000ffff0,
+	.features = PHY_GBIT_FEATURES,
+	.config = &vsc8574_config,
 	.startup = &mscc_startup,
 	.shutdown = &genphy_shutdown,
 };

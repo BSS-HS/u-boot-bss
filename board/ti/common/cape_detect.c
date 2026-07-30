@@ -9,8 +9,47 @@
 #include <i2c.h>
 #include <extension_board.h>
 #include <vsprintf.h>
+#include <linux/delay.h>
 
 #include "cape_detect.h"
+
+struct name_mapping {
+	char part_number[17];
+	char version[5];
+	char overlay[64];
+};
+
+static struct name_mapping extension_mapping[] = {
+	{
+		"BB-GREEN-HDMI",
+		"00A0",
+		"am335x-bone-hdmi-00a0.dtbo",
+	}
+};
+
+static void set_cape_overlay(char *overlay, char *part_number, char *version)
+{
+	struct name_mapping *mapping;
+
+	for (int i = 0; i < ARRAY_SIZE(extension_mapping); i++) {
+		mapping = &extension_mapping[i];
+
+		if (strncmp(mapping->part_number, part_number,
+			    sizeof(mapping->part_number)))
+			continue;
+
+		if (strncmp(mapping->version, version,
+			    sizeof(mapping->version)))
+			continue;
+
+		strlcpy(overlay, mapping->overlay, sizeof(mapping->overlay));
+		return;
+	}
+
+	/* Use default name extracted from the EEPROM */
+	snprintf(overlay, sizeof(extension_mapping[0].overlay), "%s-%s.dtbo",
+		 part_number, version);
+}
 
 static void sanitize_field(char *text, size_t size)
 {
@@ -43,6 +82,8 @@ static int ti_extension_board_scan(struct udevice *dev,
 
 		/* Move the read cursor to the beginning of the EEPROM */
 		dm_i2c_write(dev, 0, &cursor, 1);
+		/* Need 5ms (tWR) to complete internal write */
+		mdelay(6);
 		ret = dm_i2c_read(dev, 0, (uint8_t *)&eeprom_header,
 				  sizeof(struct am335x_cape_eeprom_id));
 		if (ret) {
@@ -79,8 +120,8 @@ static int ti_extension_board_scan(struct udevice *dev,
 
 		printf("BeagleBone Cape: %s (0x%x)\n", eeprom_header.board_name, addr);
 
-		snprintf(cape.overlay, sizeof(cape.overlay), "%s-%s.dtbo",
-			 process_cape_part_number, process_cape_version);
+		set_cape_overlay(cape.overlay, process_cape_part_number,
+				 process_cape_version);
 		strlcpy(cape.name, eeprom_header.board_name,
 			sizeof(eeprom_header.board_name));
 		strlcpy(cape.version, process_cape_version,

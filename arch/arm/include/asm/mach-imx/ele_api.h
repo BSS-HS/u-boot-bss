@@ -14,6 +14,8 @@
 #define ELE_PING_REQ (0x01)
 #define ELE_FW_AUTH_REQ (0x02)
 #define ELE_RESTART_RST_TIMER_REQ (0x04)
+#define ELE_VOLT_CHANGE_START_REQ (0x12)
+#define ELE_VOLT_CHANGE_FINISH_REQ (0x13)
 #define ELE_DUMP_DEBUG_BUFFER_REQ (0x21)
 #define ELE_OEM_CNTN_AUTH_REQ (0x87)
 #define ELE_VERIFY_IMAGE_REQ (0x88)
@@ -47,6 +49,7 @@
 #define ELE_ATTEST_REQ (0xDB)
 #define ELE_RELEASE_PATCH_REQ (0xDC)
 #define ELE_OTP_SEQ_SWITH_REQ (0xDD)
+#define ELE_SET_GMID_REQ (0xE4)
 #define ELE_WRITE_SHADOW_REQ (0xF2)
 #define ELE_READ_SHADOW_REQ (0xF3)
 
@@ -160,4 +163,7 @@ int ele_return_lifecycle_update(ulong signed_msg_blk, u32 *response);
 int ele_start_rng(void);
 int ele_write_shadow_fuse(u32 fuse_id, u32 fuse_val, u32 *response);
 int ele_read_shadow_fuse(u32 fuse_id, u32 *fuse_val, u32 *response);
+int ele_set_gmid(u32 *response);
+int ele_volt_change_start_req(void);
+int ele_volt_change_finish_req(void);
 #endif
