@@ -262,7 +262,7 @@
 		compatible = "nxp,pca9555";
 
 		pinctrl-names = "default";
-        pinctrl-0 = <&pinctrl_pcf8575_int>;
+        pinctrl-0 = <&pinctrl_pca9555_int>;
 
 		reg = <0x20>;
 
@@ -462,7 +462,7 @@
 		>;
 	};
 
-	pinctrl_pcf8575_int: pcf8575intgrp {
+	pinctrl_pca9555_int: pca9555intgrp {
         fsl,pins = <
             MX8MP_IOMUXC_GPIO1_IO00__GPIO1_IO00    0x1c0
         >;
