@@ -1,0 +1,11 @@
+SDPS: boot -f flash.bin
+
+FB: flash mmc2boot0 flash.bin
+FB[-t 60000]: flash -raw2sparse all bss-image.wic.gz/*
+
+# mmc partconf <dev> <boot_ack> <boot_partition_enable=1 -> boot0> <partition_access=boot0>
+FB: ucmd mmc partconf 2 1 1 1
+
+FB: acmd reset
+
+FB: done

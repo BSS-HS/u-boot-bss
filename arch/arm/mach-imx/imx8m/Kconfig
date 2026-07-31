@@ -380,6 +380,15 @@ config TARGET_PHYCORE_IMX8MP
 	select IMX8M_LPDDR4
 	imply OF_UPSTREAM
 
+config TARGET_BSS_IMX8MP_PDM600
+	bool "BSS PDM600 (PHYTEC phyCORE-i.MX8MP SOM, custom carrier board)"
+	select IMX8MP
+	select SUPPORT_SPL
+	select IMX8M_LPDDR4
+	help
+	  PDM-600 i.MX8MP is a custom carrier board designed by BSS for the PHYTEC
+	  phyCORE-i.MX8MP SOM.
+
 config TARGET_IMX8MP_LIBRA_FPSC
 	bool "PHYTEC Libra i.MX 8M Plus FPSC"
 	select IMX8MP
@@ -454,6 +463,7 @@ source "board/kontron/sl-mx8mm/Kconfig"
 source "board/menlo/mx8menlo/Kconfig"
 source "board/msc/sm2s_imx8mp/Kconfig"
 source "board/mntre/imx8mq_reform2/Kconfig"
+source "board/bss/imx8mp_pdm600/Kconfig"
 source "board/phytec/imx8mp-libra-fpsc/Kconfig"
 source "board/phytec/phycore_imx8mm/Kconfig"
 source "board/phytec/phycore_imx8mp/Kconfig"
