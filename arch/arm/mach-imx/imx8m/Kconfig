@@ -386,10 +386,8 @@ config TARGET_BSS_IMX8MP_PDM600
 	select SUPPORT_SPL
 	select IMX8M_LPDDR4
 	help
-	  PDM600 is a custom carrier board designed by BSS for the PHYTEC
-	  phyCORE-i.MX8MP SOM. Unlike the PHYTEC phyBOARD-Pollux reference
-	  design, this board is not part of the upstream (Linux-mirrored)
-	  devicetree, so CONFIG_OF_UPSTREAM is disabled for this target.
+	  PDM-600 i.MX8MP is a custom carrier board designed by BSS for the PHYTEC
+	  phyCORE-i.MX8MP SOM.
 
 config TARGET_IMX8MP_LIBRA_FPSC
 	bool "PHYTEC Libra i.MX 8M Plus FPSC"

@@ -3,5 +3,5 @@ S:      Maintained
 F:      arch/arm/dts/imx8mp-bss-pdm600.dts
 F:      arch/arm/dts/imx8mp-bss-pdm600-u-boot.dtsi
 F:      board/bss/imx8mp_pdm600/
-F:      configs/imx8mp-bss-pdm600_defconfig
+F:      configs/imx8mp_pdm600_defconfig
 F:      include/configs/imx8mp_pdm600.h

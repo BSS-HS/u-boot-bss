@@ -2,7 +2,7 @@
 #
 # Copyright (C) 2026 BSS
 #
-# PDM600 carrier board for the PHYTEC phyCORE-i.MX8MP SOM.
+# PDM-600 carrier board for the PHYTEC phyCORE-i.MX8MP SOM.
 
 obj-y += imx8mp-pdm600.o
 
