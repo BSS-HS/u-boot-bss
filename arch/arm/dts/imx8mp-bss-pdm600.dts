@@ -1,52 +1,169 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2026 BSS Hochspannungstechnik GmbH
- *
- * PDM-600 - custom carrier board for the PHYTEC phyCORE-i.MX8MP SOM.
- *
+ * Author: Malte Gerber <malte.gerber@bss-hs.de>
  */
 
- /dts-v1/;
+/dts-v1/;
 
+#include <dt-bindings/phy/phy-imx8-pcie.h>
 #include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/leds/common.h>
 #include "imx8mp-phycore-som.dtsi"
 
 / {
-	model = "BSS PDM-600 (PHYTEC phyCORE-i.MX8MP)";
-	compatible = "bss,imx8mp-pdm600", "phytec,imx8mp-phycore-som", "fsl,imx8mp";
+	model = "BSS PDM-600 i.MX8MP PhyCORE";
+	compatible = "bss,imx8mp-phycore-pdm600", "phytec,imx8mp-phycore-som", "fsl,imx8mp";
 
-	base-revision-gpios = <&gpio_expander_base 0 GPIO_ACTIVE_HIGH>,
-			      <&gpio_expander_base 1 GPIO_ACTIVE_HIGH>,
-			      <&gpio_expander_base 2 GPIO_ACTIVE_HIGH>,
-			      <&gpio_expander_base 3 GPIO_ACTIVE_HIGH>,
-			      <&gpio_expander_base 4 GPIO_ACTIVE_HIGH>;
-
-	io-card-revision-gpios = <&gpio_expander_io 0 GPIO_ACTIVE_HIGH>,
-				 <&gpio_expander_io 1 GPIO_ACTIVE_HIGH>,
-				 <&gpio_expander_io 2 GPIO_ACTIVE_HIGH>,
-				 <&gpio_expander_io 3 GPIO_ACTIVE_HIGH>,
-				 <&gpio_expander_io 4 GPIO_ACTIVE_HIGH>;
-
-	power-card-revision-gpios = <&gpio_expander_power 0 GPIO_ACTIVE_HIGH>,
-				    <&gpio_expander_power 1 GPIO_ACTIVE_HIGH>,
-				    <&gpio_expander_power 2 GPIO_ACTIVE_HIGH>,
-				    <&gpio_expander_power 3 GPIO_ACTIVE_HIGH>,
-				    <&gpio_expander_power 4 GPIO_ACTIVE_HIGH>;
+	/* 
+	 * hardware revisions for software compatibility checks
+	 * these values should be set by u-boot depending on the detected hardware revision of the respective board (base, io card, power card)
+	*/
+    base_hardware_revision = <0x2>;
+    io_card_hardware_revision = <0x2>;
+    power_card_hardware_revision = <0x2>;
 
 	chosen {
 		stdout-path = &uart1;
 	};
 
-	reg_usb1_vbus: regulator-usb1-vbus {
-		compatible = "regulator-fixed";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_usb1_vbus>;
-		gpios = <&gpio1 12 GPIO_ACTIVE_LOW>;
-		regulator-max-microvolt = <5000000>;
-		regulator-min-microvolt = <5000000>;
-		regulator-name = "usb1_host_vbus";
+	firmware {
+		optee {
+			compatible = "linaro,optee-tz";
+			method = "smc";
+		};
 	};
+
+    // LEDs
+	gpio-leds {
+		compatible = "gpio-leds";
+
+        led-1-red {
+            gpios = <&gpio_expander_io 13 GPIO_ACTIVE_LOW>;
+			function = LED_FUNCTION_STATUS;
+            color = <LED_COLOR_ID_RED>;
+            default-state = "on";
+			function-enumerator = <1>;
+        };
+
+        led-1-green {
+            gpios = <&gpio_expander_io 12 GPIO_ACTIVE_LOW>;
+			function = LED_FUNCTION_STATUS;
+            color = <LED_COLOR_ID_GREEN>;
+            default-state = "on";
+			function-enumerator = <1>;
+        };
+
+        led-2-red {
+            gpios = <&gpio_expander_io 11 GPIO_ACTIVE_LOW>;
+			function = LED_FUNCTION_STATUS;
+            color = <LED_COLOR_ID_RED>;
+            default-state = "on";
+			function-enumerator = <2>;
+        };
+
+        led-2-green {
+            gpios = <&gpio_expander_io 10 GPIO_ACTIVE_LOW>;
+			function = LED_FUNCTION_STATUS;
+            color = <LED_COLOR_ID_GREEN>;
+            default-state = "on";
+			function-enumerator = <2>;
+        };
+
+        led-3-red {
+            gpios = <&gpio_expander_io 9 GPIO_ACTIVE_LOW>;
+			function = LED_FUNCTION_STATUS;
+            color = <LED_COLOR_ID_RED>;
+            default-state = "on";
+			function-enumerator = <3>;
+        };
+
+        led-3-green {
+            gpios = <&gpio_expander_io 8 GPIO_ACTIVE_LOW>;
+			function = LED_FUNCTION_STATUS;
+            color = <LED_COLOR_ID_GREEN>;
+            default-state = "on";
+			function-enumerator = <3>;
+        };
+
+        relay-1 {
+            label = "relay-1";
+            gpios = <&gpio_expander_io 14 GPIO_ACTIVE_HIGH>;
+            default-state = "off";
+        };
+
+        relay-2 {
+            label = "relay-2";
+            gpios = <&gpio_expander_io 15 GPIO_ACTIVE_HIGH>;
+            default-state = "off";
+        };
+
+        sync-mux-en {
+            label = "sync-mux-en";
+            gpios = <&gpio_expander_base 5 GPIO_ACTIVE_HIGH>;
+            default-state = "on";
+        };
+
+        sync-mux-a0 {
+            label = "sync-mux-a0";
+            gpios = <&gpio_expander_base 6 GPIO_ACTIVE_HIGH>;
+            default-state = "off";
+        };
+
+        sync-mux-a1 {
+            label = "sync-mux-a1";
+            gpios = <&gpio_expander_base 7 GPIO_ACTIVE_HIGH>;
+            default-state = "off";
+        };
+	};
+
+    // Buttons
+	gpio-keys {
+		compatible = "gpio-keys";
+		autorepeat;
+
+		service {
+			label = "service";
+			linux,code = <KEY_SETUP>;
+            gpios = <&gpio_expander_io 7 GPIO_ACTIVE_LOW>;
+		};
+
+		reset {
+			label = "reset";
+			linux,code = <KEY_RESTART>;
+            gpios = <&gpio_expander_io 6 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+    pcm1821: audio-codec {
+        compatible = "dmic-codec";
+        num-channels = <2>;
+        #sound-dai-cells = <0>;
+        status = "okay";
+    };
+
+    sound {
+        compatible = "simple-audio-card";
+        simple-audio-card,name = "PCM1821 Sync Voltage";
+        simple-audio-card,format = "i2s";
+
+        simple-audio-card,bitclock-master = <&dai_cpu>;
+        simple-audio-card,frame-master = <&dai_cpu>;
+
+        simple-audio-card,widgets = "Microphone", "PCM1821 Input";
+        simple-audio-card,routing = "DMic", "PCM1821 Input";
+
+        dai_cpu: simple-audio-card,cpu {
+            sound-dai = <&sai3>;
+            status = "okay";
+        };
+
+        dai_codec: simple-audio-card,codec {
+            sound-dai = <&pcm1821>;
+            status = "okay";
+        };
+    };
+
 
 	reg_usdhc2_vmmc: regulator-usdhc2 {
 		compatible = "regulator-fixed";
@@ -55,63 +172,97 @@
 		regulator-name = "VSD_3V3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		gpios = <&gpio2 19 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio2 19 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		startup-delay-us = <100>;
 		off-on-delay-us = <12000>;
 	};
-};
 
-/* Debug console */
-&uart1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_uart1>;
-	status = "okay";
-};
+	reg_vcc_3v3_sw: regulator-vcc-3v3-sw {
+		compatible = "regulator-fixed";
+		regulator-name = "VCC_3V3_SW";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
 
-&usdhc2 {
-	assigned-clocks = <&clk IMX8MP_CLK_USDHC2>;
-	assigned-clock-rates = <200000000>;
-	pinctrl-names = "default", "state_100mhz", "state_200mhz";
-	pinctrl-0 = <&pinctrl_usdhc2>, <&pinctrl_usdhc2_pins>;
-	pinctrl-1 = <&pinctrl_usdhc2_100mhz>, <&pinctrl_usdhc2_pins>;
-	pinctrl-2 = <&pinctrl_usdhc2_200mhz>, <&pinctrl_usdhc2_pins>;
-	cd-gpios = <&gpio2 12 GPIO_ACTIVE_LOW>;
-	disable-wp;
-	vmmc-supply = <&reg_usdhc2_vmmc>;
-	vqmmc-supply = <&ldo5>;
-	bus-width = <4>;
-	status = "okay";
-};
+    reg_usb1_vbus: regulator-usb1-vbus {
+        compatible = "regulator-fixed";
+        pinctrl-names = "default";
+        pinctrl-0 = <&pinctrl_usb1_vbus>;
+        gpio = <&gpio1 12 GPIO_ACTIVE_LOW>;
+        regulator-max-microvolt = <5000000>;
+        regulator-min-microvolt = <5000000>;
+        regulator-name = "usb1_host_vbus";
+    };
 
-&usb3_phy0 {
-	vbus-supply = <&reg_usb1_vbus>;
-	status = "okay";
-};
+	reg_vcc_5v_pos: regulator-vcc-5v-pos {
+        compatible = "regulator-fixed";
+        regulator-name = "VCC_5V_POS";
+        regulator-min-microvolt = <5000000>; /* 5V */
+        regulator-max-microvolt = <5000000>;
+        gpio = <&gpio_expander_power 10 GPIO_ACTIVE_LOW>;
+		regulator-boot-on;
+		startup-delay-us = <20000>;
+    };
 
-&usb3_0 {
-	status = "okay";
-};
+    reg_vcc_5v_neg: regulator-vcc-5v-neg {
+        compatible = "regulator-fixed";
+        regulator-name = "VCC_5V_NEG";
+        /* The Linux regulator framework expects positive values */
+        regulator-min-microvolt = <5000000>; /* |-5V| = 5V */
+        regulator-max-microvolt = <5000000>;
+        gpio = <&gpio_expander_power 9 GPIO_ACTIVE_LOW>;
+		regulator-boot-on;
+		startup-delay-us = <100>;
 
-&usb_dwc3_0 {
-	dr_mode = "host";
-	status = "okay";
+		// only to avoid that the -5 V is enabled before the +5 V is enabled, which would causes problems
+		vin-supply = <&reg_vcc_5v_pos>; 
+    };
+
+    reg_vcc_21v_pos: regulator-vcc-21v-pos {
+        compatible = "regulator-fixed";
+        regulator-name = "VCC_21V_POS";
+        regulator-min-microvolt = <21000000>; /* 21V = 21.000.000 uV */
+        regulator-max-microvolt = <21000000>;
+        gpio = <&gpio_expander_power 8 GPIO_ACTIVE_LOW>;
+		regulator-boot-on;
+		startup-delay-us = <100>;
+    };
+
+    reg_vref_adc: regulator-vref-adc {
+        compatible = "regulator-fixed";
+        regulator-name = "VREF_ADC";
+        regulator-min-microvolt = <1800000>; /* 1.8V = 1.800.000 uV */
+        regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+    };
 };
 
 &i2c2 {
 	clock-frequency = <400000>;
-	pinctrl-names = "default", "gpio";
+	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c2>;
-	pinctrl-1 = <&pinctrl_i2c2_gpio>;
-	sda-gpios = <&gpio5 17 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
-	scl-gpios = <&gpio5 16 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	status = "okay";
 
-	gpio_expander_base: pcf8575@20 {
-		compatible = "nxp,pcf8575";
+	voltage_observation: adc128d818@1d {
+		compatible = "ti,adc128d818";
+		reg = <0x1d>;
+		ti,mode = <2>;
+		vref-supply = <&reg_vref_adc>;
+		status = "okay";
+	};
+
+    temperature_humidity: sht4x@44 {
+		compatible = "sensirion,sht4x";
+		reg = <0x44>;
+		status = "okay";
+	};
+
+    gpio_expander_base: pca9555@20 {
+		compatible = "nxp,pca9555";
 
 		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_pcf8575_int>;
+        pinctrl-0 = <&pinctrl_pcf8575_int>;
 
 		reg = <0x20>;
 
@@ -128,8 +279,8 @@
 		status = "okay";
 	};
 
-	gpio_expander_power: pcf8575@21 {
-		compatible = "nxp,pcf8575";
+    gpio_expander_power: pca9555@21 {
+		compatible = "nxp,pca9555";
 
 		reg = <0x21>;
 
@@ -146,8 +297,8 @@
 		status = "okay";
 	};
 
-	gpio_expander_io: pcf8575@22 {
-		compatible = "nxp,pcf8575";
+    gpio_expander_io: pca9555@22 {
+		compatible = "nxp,pca9555";
 
 		reg = <0x22>;
 
@@ -164,8 +315,8 @@
 		status = "okay";
 	};
 
-	gpio_expander_mp: pcf8575@23 {
-		compatible = "nxp,pcf8575";
+    gpio_expander_mp: pca9555@23 {
+		compatible = "nxp,pca9555";
 
 		reg = <0x23>;
 
@@ -183,17 +334,146 @@
 	};
 };
 
+&sai3 {
+    pinctrl-names = "default";
+    pinctrl-0 = <&pinctrl_sai3>;
+    assigned-clocks = <&clk IMX8MP_CLK_SAI3>;
+    assigned-clock-parents = <&clk IMX8MP_AUDIO_PLL1_OUT>;
+    assigned-clock-rates = <12288000>;
+    fsl,sai-mclk-direction-output;
+    fsl,sai-asynchronous;
+    status = "okay";
+};
+
+&pcie_phy {
+	clocks = <&hsio_blk_ctrl>;
+	clock-names = "ref";
+	fsl,refclk-pad-mode = <IMX8_PCIE_REFCLK_PAD_OUTPUT>;
+	fsl,clkreq-unsupported;
+	status = "okay";
+};
+
+/* Mini PCIe */
+&pcie {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pcie0>;
+	reset-gpios = <&gpio1 8 GPIO_ACTIVE_LOW>;
+	vpcie-supply = <&reg_vcc_3v3_sw>;
+	status = "okay";
+};
+
+&fec {
+	// set max speed to 100Mbit/s to avoid negotiation problems with the PHY
+	max-speed = <100>;
+};
+
+&ethphy1 {
+	// set max speed to 100Mbit/s to avoid negotiation problems with the PHY
+	max-speed = <100>;
+};
+
+
+&ecspi2 {
+    pinctrl-names = "default";
+    pinctrl-0 = <&pinctrl_ecspi2>;
+    status = "disabled";
+};
+
+
+/* debug console */
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart1>;
+	status = "okay";
+};
+
+/* USB Host mode */
+&usb3_phy0 {
+    vbus-supply = <&reg_usb1_vbus>;
+    status = "okay";
+};
+
+&usb3_0 {
+    status = "okay";
+};
+
+&usb_dwc3_0 {
+    dr_mode = "host";
+	/* Unknown if SuperSpeed pairs are routed on this instance either. */
+	maximum-speed = "high-speed";
+    status = "okay";
+};
+
+/* SD-Card */
+&usdhc2 {
+	assigned-clocks = <&clk IMX8MP_CLK_USDHC2>;
+	assigned-clock-rates = <200000000>;
+	pinctrl-names = "default", "state_100mhz", "state_200mhz";
+	pinctrl-0 = <&pinctrl_usdhc2>, <&pinctrl_usdhc2_pins>;
+	pinctrl-1 = <&pinctrl_usdhc2_100mhz>, <&pinctrl_usdhc2_pins>;
+	pinctrl-2 = <&pinctrl_usdhc2_200mhz>, <&pinctrl_usdhc2_pins>;
+	cd-gpios = <&gpio2 12 GPIO_ACTIVE_LOW>;
+	disable-wp;
+	vmmc-supply = <&reg_usdhc2_vmmc>;
+	vqmmc-supply = <&ldo5>;
+	bus-width = <4>;
+	status = "okay";
+};
+
+&gpio5 {
+    gpio-line-names = "", "", "", "", "", "", "", "", "", "",
+                    "", "", "", "", "", "",
+                    "", "CARD-MUX-A0", "CARD-MUX-A1";
+};
+
+&uart3 {
+    status = "disabled";
+};
+
+&ecspi1 {
+    status = "disabled";
+};
+
+
 &iomuxc {
-	pinctrl_uart1: uart1grp {
+
+    pinctrl_ecspi2: ecspi2grp {
+        fsl,pins = <
+            MX8MP_IOMUXC_ECSPI2_MISO__ECSPI2_MISO   0x80 /* !!!! */
+            MX8MP_IOMUXC_ECSPI2_MOSI__ECSPI2_MOSI   0x80
+            MX8MP_IOMUXC_ECSPI2_SCLK__ECSPI2_SCLK   0x80
+            MX8MP_IOMUXC_ECSPI2_SS0__ECSPI2_SS0     0x106
+        >;
+    };
+
+
+    pinctrl_sai3: sai3grp {
+        fsl,pins = <
+            MX8MP_IOMUXC_SAI3_RXC__AUDIOMIX_SAI3_RX_BCLK    0xd6
+            MX8MP_IOMUXC_SAI3_RXD__AUDIOMIX_SAI3_RX_DATA00  0xd6
+            MX8MP_IOMUXC_SAI3_RXFS__AUDIOMIX_SAI3_RX_SYNC   0xd6 
+        >;
+    };
+
+	pinctrl_i2c2: i2c2grp {
 		fsl,pins = <
-			MX8MP_IOMUXC_UART1_RXD__UART1_DCE_RX	0x140
-			MX8MP_IOMUXC_UART1_TXD__UART1_DCE_TX	0x140
+			MX8MP_IOMUXC_I2C2_SCL__I2C2_SCL		0x400001c2
+			MX8MP_IOMUXC_I2C2_SDA__I2C2_SDA		0x400001c2
 		>;
 	};
 
-	pinctrl_usb1_vbus: usb1vbusgrp {
+	pinctrl_pcf8575_int: pcf8575intgrp {
+        fsl,pins = <
+            MX8MP_IOMUXC_GPIO1_IO00__GPIO1_IO00    0x1c0
+        >;
+    };
+
+	pinctrl_pcie0: pcie0grp {
 		fsl,pins = <
-			MX8MP_IOMUXC_GPIO1_IO12__GPIO1_IO12	0x10
+			MX8MP_IOMUXC_GPIO1_IO08__GPIO1_IO08     0x40
+			MX8MP_IOMUXC_GPIO1_IO10__GPIO1_IO10     0x60
+			MX8MP_IOMUXC_GPIO1_IO11__GPIO1_IO11	    0x60 /* open drain, pull up */
+			MX8MP_IOMUXC_GPIO1_IO14__GPIO1_IO14     0x40
 		>;
 	};
 
@@ -203,16 +483,35 @@
 		>;
 	};
 
+	pinctrl_rtc: rtcgrp {
+		fsl,pins = <
+			MX8MP_IOMUXC_SAI1_TXD7__GPIO4_IO19	0x1C0
+		>;
+	};
+
+	pinctrl_uart1: uart1grp {
+		fsl,pins = <
+			MX8MP_IOMUXC_UART1_RXD__UART1_DCE_RX	0x140
+			MX8MP_IOMUXC_UART1_TXD__UART1_DCE_TX	0x140
+		>;
+	};
+
+    pinctrl_usb1_vbus: usb1vbusgrp {
+        fsl,pins = <
+            MX8MP_IOMUXC_GPIO1_IO12__GPIO1_IO12     0x40
+        >;
+    };
+
 	pinctrl_usdhc2_pins: usdhc2-gpiogrp {
 		fsl,pins = <
-			MX8MP_IOMUXC_SD2_CD_B__GPIO2_IO12	0x40
+			MX8MP_IOMUXC_SD2_CD_B__GPIO2_IO12	0x1C0
 		>;
 	};
 
 	pinctrl_usdhc2: usdhc2grp {
 		fsl,pins = <
-			MX8MP_IOMUXC_SD2_CLK__USDHC2_CLK	0x190
-			MX8MP_IOMUXC_SD2_CMD__USDHC2_CMD	0x1d0
+			MX8MP_IOMUXC_SD2_CLK__USDHC2_CLK	    0x190
+			MX8MP_IOMUXC_SD2_CMD__USDHC2_CMD	    0x1d0
 			MX8MP_IOMUXC_SD2_DATA0__USDHC2_DATA0	0x1d0
 			MX8MP_IOMUXC_SD2_DATA1__USDHC2_DATA1	0x1d0
 			MX8MP_IOMUXC_SD2_DATA2__USDHC2_DATA2	0x1d0
@@ -223,8 +522,8 @@
 
 	pinctrl_usdhc2_100mhz: usdhc2-100mhzgrp {
 		fsl,pins = <
-			MX8MP_IOMUXC_SD2_CLK__USDHC2_CLK	0x194
-			MX8MP_IOMUXC_SD2_CMD__USDHC2_CMD	0x1d4
+			MX8MP_IOMUXC_SD2_CLK__USDHC2_CLK	    0x194
+			MX8MP_IOMUXC_SD2_CMD__USDHC2_CMD	    0x1d4
 			MX8MP_IOMUXC_SD2_DATA0__USDHC2_DATA0	0x1d4
 			MX8MP_IOMUXC_SD2_DATA1__USDHC2_DATA1	0x1d4
 			MX8MP_IOMUXC_SD2_DATA2__USDHC2_DATA2	0x1d4
@@ -235,8 +534,8 @@
 
 	pinctrl_usdhc2_200mhz: usdhc2-200mhzgrp {
 		fsl,pins = <
-			MX8MP_IOMUXC_SD2_CLK__USDHC2_CLK	0x196
-			MX8MP_IOMUXC_SD2_CMD__USDHC2_CMD	0x1d6
+			MX8MP_IOMUXC_SD2_CLK__USDHC2_CLK	    0x196
+			MX8MP_IOMUXC_SD2_CMD__USDHC2_CMD	    0x1d6
 			MX8MP_IOMUXC_SD2_DATA0__USDHC2_DATA0	0x1d6
 			MX8MP_IOMUXC_SD2_DATA1__USDHC2_DATA1	0x1d6
 			MX8MP_IOMUXC_SD2_DATA2__USDHC2_DATA2	0x1d6
@@ -244,37 +543,4 @@
 			MX8MP_IOMUXC_GPIO1_IO04__USDHC2_VSELECT	0xc0
 		>;
 	};
-
-	pinctrl_i2c2: i2c2grp {
-		fsl,pins = <
-			MX8MP_IOMUXC_I2C2_SCL__I2C2_SCL		0x400001c2
-			MX8MP_IOMUXC_I2C2_SDA__I2C2_SDA		0x400001c2
-		>;
-	};
-
-	pinctrl_i2c2_gpio: i2c2gpiogrp {
-		fsl,pins = <
-			MX8MP_IOMUXC_I2C2_SCL__GPIO5_IO16	0x1e2
-			MX8MP_IOMUXC_I2C2_SDA__GPIO5_IO17	0x1e2
-		>;
-	};
-
-	pinctrl_pcf8575_int: pcf8575intgrp {
-		fsl,pins = <
-			MX8MP_IOMUXC_GPIO1_IO00__GPIO1_IO00	0x1C0
-		>;
-	};
-};
-
-&gpio1 {
-	gpio-line-names = "PCF8575_nINT", "", "X_PMIC_WDOG_B", "",
-		"PMIC_SD_VSEL", "", "", "", "", "",
-		"", "", "USB1_OTG_PWR";
-};
-
-&gpio2 {
-	gpio-line-names = "", "", "", "",
-		"", "", "", "", "", "",
-		"", "", "X_SD2_CD_B", "", "", "",
-		"", "", "", "SD2_RESET_B";
 };

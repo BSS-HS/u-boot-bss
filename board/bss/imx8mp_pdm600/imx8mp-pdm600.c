@@ -26,7 +26,7 @@ DECLARE_GLOBAL_DATA_PTR;
 #define BOARD_REV_GPIO_COUNT 5
 
 /*
- * Board/carrier-card revisions, read from the pcf8575 GPIO expanders in
+ * Board/carrier-card revisions, read from the pca9555 GPIO expanders in
  * board_late_init(). Cached here so ft_board_setup() does not have to
  * re-probe the I2C bus. Default to 0 (matches the compiled-in dts
  * fallback) if the expanders could not be read.

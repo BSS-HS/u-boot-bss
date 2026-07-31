@@ -1,15 +1,30 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2026 BSS
- *
- * u-boot-only additions for the PDM600 carrier board (SPL bootph-pre-ram
- * markers etc.). See imx8mp-bss-pdm600.dts for the actual hardware
- * description.
+ * Copyright (C) 2026 BSS Hochspannungstechnik GmbH
+ * Author: Malte Gerber <malte.gerber@bss-hs.de>
  */
 
 #include "imx8mp-u-boot.dtsi"
 
 / {
+	base-revision-gpios = <&gpio_expander_base 0 GPIO_ACTIVE_HIGH>,
+			      <&gpio_expander_base 1 GPIO_ACTIVE_HIGH>,
+			      <&gpio_expander_base 2 GPIO_ACTIVE_HIGH>,
+			      <&gpio_expander_base 3 GPIO_ACTIVE_HIGH>,
+			      <&gpio_expander_base 4 GPIO_ACTIVE_HIGH>;
+
+	io-card-revision-gpios = <&gpio_expander_io 0 GPIO_ACTIVE_HIGH>,
+				 <&gpio_expander_io 1 GPIO_ACTIVE_HIGH>,
+				 <&gpio_expander_io 2 GPIO_ACTIVE_HIGH>,
+				 <&gpio_expander_io 3 GPIO_ACTIVE_HIGH>,
+				 <&gpio_expander_io 4 GPIO_ACTIVE_HIGH>;
+
+	power-card-revision-gpios = <&gpio_expander_power 0 GPIO_ACTIVE_HIGH>,
+				    <&gpio_expander_power 1 GPIO_ACTIVE_HIGH>,
+				    <&gpio_expander_power 2 GPIO_ACTIVE_HIGH>,
+				    <&gpio_expander_power 3 GPIO_ACTIVE_HIGH>,
+				    <&gpio_expander_power 4 GPIO_ACTIVE_HIGH>;
+
 	wdt-reboot {
 		compatible = "wdt-reboot";
 		wdt = <&wdog1>;
@@ -17,7 +32,48 @@
 	};
 };
 
+/* Not needed by U-Boot, and regulator-boot-on */
+&reg_vcc_5v_pos {
+	status = "disabled";
+};
+
+&reg_vcc_5v_neg {
+	status = "disabled";
+};
+
+&reg_vcc_21v_pos {
+	status = "disabled";
+};
+
+&pinctrl_i2c1 {
+	bootph-all;
+};
+
+&pinctrl_i2c1_gpio {
+	bootph-all;
+};
+
+&pinctrl_pmic {
+	bootph-all;
+};
+
+&{/soc@0/bus@30800000/i2c@30a20000/pmic@25/regulators} {
+	bootph-all;
+};
+
+&reg_usdhc2_vmmc {
+	bootph-pre-ram;
+};
+
 &pinctrl_uart1 {
+	bootph-pre-ram;
+};
+
+&pinctrl_usdhc2_pins {
+	bootph-pre-ram;
+};
+
+&pinctrl_usdhc2 {
 	bootph-pre-ram;
 };
 
@@ -54,15 +110,52 @@
 };
 
 &i2c1 {
-	bootph-pre-ram;
+	bootph-all;
 };
 
 &i2c2 {
-	bootph-pre-ram;
+	bootph-all;
+	pinctrl-names = "default", "gpio";
+	pinctrl-1 = <&pinctrl_i2c2_gpio>;
+	scl-gpios = <&gpio5 16 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	sda-gpios = <&gpio5 17 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+};
+
+&iomuxc {
+	pinctrl_i2c2_gpio: i2c2gpiogrp {
+		fsl,pins = <
+			MX8MP_IOMUXC_I2C2_SCL__GPIO5_IO16	0x1e2
+			MX8MP_IOMUXC_I2C2_SDA__GPIO5_IO17	0x1e2
+		>;
+	};
 };
 
 &pmic {
+	bootph-all;
+};
+
+&usb3_phy1 {
+	status = "okay";
+};
+
+&usb3_1 {
+	status = "okay";
+};
+
+&usb_dwc3_1 {
+	status = "okay";
+	/* Unknown if SuperSpeed pairs are routed on this instance either. */
+	maximum-speed = "high-speed";
+};
+
+&usdhc2 {
 	bootph-pre-ram;
+	/*
+	 * LDO5 output depends on SD2_VSEL, but no way to read back SD2_VSEL
+	 * when using SDHC controller VSELECT to control SD2_VSEL. So drop
+	 * vqmmc-supply to avoid fsl_esdhc_imx read back wrong voltage.
+	 */
+	/delete-property/ vqmmc-supply;
 };
 
 &usdhc3 {
