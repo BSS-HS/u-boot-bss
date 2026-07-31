@@ -17,8 +17,8 @@ DECLARE_GLOBAL_DATA_PTR;
 #include <u-boot/rsa.h>
 #include <u-boot/hash-checksum.h>
 
-#define IMAGE_MAX_HASHED_NODES 100
-#define FIT_MAX_HASH_PATH_BUF 4096
+#define IMAGE_MAX_HASHED_NODES		100
+#define FIT_MAX_HASH_PATH_BUF		4096
 
 /**
  * fit_region_make_list() - Make a list of image regions
@@ -63,9 +63,10 @@ struct image_region *fit_region_make_list(const void *fit,
 	return region;
 }
 
-static int fit_image_setup_verify(struct image_sign_info *info, const void *fit,
-				  int noffset, const void *key_blob,
-				  int required_keynode, char **err_msgp)
+static int fit_image_setup_verify(struct image_sign_info *info,
+				  const void *fit, int noffset,
+				  const void *key_blob, int required_keynode,
+				  char **err_msgp)
 {
 	const char *algo_name;
 	const char *padding_name;
@@ -177,8 +178,8 @@ static int fit_image_verify_sig(const void *fit, int image_noffset,
 	return verified ? 0 : -EPERM;
 
 error:
-	printf(" error!\n%s for '%s' hash node in '%s' image node\n", err_msg,
-	       fit_get_name(fit, noffset, NULL),
+	printf(" error!\n%s for '%s' hash node in '%s' image node\n",
+	       err_msg, fit_get_name(fit, noffset, NULL),
 	       fit_get_name(fit, image_noffset, NULL));
 	return -1;
 }
@@ -209,8 +210,8 @@ int fit_image_verify_required_sigs(const void *fit, int image_noffset,
 		const char *required;
 		int ret;
 
-		required =
-			fdt_getprop(key_blob, noffset, FIT_KEY_REQUIRED, NULL);
+		required = fdt_getprop(key_blob, noffset, FIT_KEY_REQUIRED,
+				       NULL);
 		if (!required || strcmp(required, "image"))
 			continue;
 		ret = fit_image_verify_sig(fit, image_noffset, data, size,
@@ -264,11 +265,13 @@ static int fit_config_add_hash(const void *fit, int image_noffset,
 
 	/* Add all this image's hash subnodes */
 	hash_count = 0;
-	for (noffset = fdt_first_subnode(fit, image_noffset); noffset >= 0;
+	for (noffset = fdt_first_subnode(fit, image_noffset);
+	     noffset >= 0;
 	     noffset = fdt_next_subnode(fit, noffset)) {
 		const char *name = fit_get_name(fit, noffset, NULL);
 
-		if (strncmp(name, FIT_HASH_NODENAME, strlen(FIT_HASH_NODENAME)))
+		if (strncmp(name, FIT_HASH_NODENAME,
+			    strlen(FIT_HASH_NODENAME)))
 			continue;
 		if (*count >= max_nodes)
 			return -ENOSPC;
@@ -326,8 +329,8 @@ static int fit_config_add_hash(const void *fit, int image_noffset,
  * Return: number of entries in @node_inc, or -ve on error
  */
 static int fit_config_get_hash_list(const void *fit, int conf_noffset,
-				    char **node_inc, int max_nodes, char *buf,
-				    int buf_len)
+				    char **node_inc, int max_nodes,
+				    char *buf, int buf_len)
 {
 	const char *conf_name;
 	int image_count;
@@ -342,7 +345,7 @@ static int fit_config_get_hash_list(const void *fit, int conf_noffset,
 	if (max_nodes < 2)
 		return -ENOSPC;
 
-	len = 2; /* "/" + nul */
+	len = 2;  /* "/" + nul */
 	if (len > buf_len)
 		return -ENOSPC;
 	strcpy(buf, "/");
@@ -350,8 +353,7 @@ static int fit_config_get_hash_list(const void *fit, int conf_noffset,
 	used += len;
 
 	len = snprintf(buf + used, buf_len - used, "%s/%s", FIT_CONFS_PATH,
-		       conf_name) +
-	      1;
+		       conf_name) + 1;
 	if (used + len > buf_len)
 		return -ENOSPC;
 	node_inc[count++] = buf + used;
@@ -377,8 +379,9 @@ static int fit_config_get_hash_list(const void *fit, int conf_noffset,
 		for (i = 0; i < img_count; i++) {
 			int noffset;
 
-			noffset = fit_conf_get_prop_node_index(
-				fit, conf_noffset, prop_name, i);
+			noffset = fit_conf_get_prop_node_index(fit,
+							       conf_noffset,
+							       prop_name, i);
 			if (noffset < 0)
 				continue;
 
@@ -434,7 +437,7 @@ static int fit_config_check_sig(const void *fit, int noffset, int conf_noffset,
 				const void *key_blob, int required_keynode,
 				char **err_msgp)
 {
-	static char *const exc_prop[] = {
+	static char * const exc_prop[] = {
 		FIT_DATA_PROP,
 		FIT_DATA_SIZE_PROP,
 		FIT_DATA_POSITION_PROP,
@@ -465,9 +468,9 @@ static int fit_config_check_sig(const void *fit, int noffset, int conf_noffset,
 	}
 
 	/* Build the node list from the config, ignoring hashed-nodes */
-	count = fit_config_get_hash_list(fit, conf_noffset, node_inc,
-					 IMAGE_MAX_HASHED_NODES, hash_buf,
-					 sizeof(hash_buf));
+	count = fit_config_get_hash_list(fit, conf_noffset,
+					 node_inc, IMAGE_MAX_HASHED_NODES,
+					 hash_buf, sizeof(hash_buf));
 	if (count < 0) {
 		*err_msgp = "Failed to build hash node list";
 		return -1;
@@ -485,9 +488,10 @@ static int fit_config_check_sig(const void *fit, int noffset, int conf_noffset,
 	struct fdt_region fdt_regions[max_regions];
 
 	/* Get a list of regions to hash */
-	count = fdt_find_regions(fit, node_inc, count, exc_prop,
-				 ARRAY_SIZE(exc_prop), fdt_regions,
-				 max_regions - 1, path, sizeof(path), 0);
+	count = fdt_find_regions(fit, node_inc, count,
+				 exc_prop, ARRAY_SIZE(exc_prop),
+				 fdt_regions, max_regions - 1,
+				 path, sizeof(path), 0);
 	if (count < 0) {
 		*err_msgp = "Failed to hash configuration";
 		return -1;
@@ -589,8 +593,8 @@ static int fit_config_verify_key(const void *fit, int conf_noffset,
 		return 0;
 
 error:
-	printf(" error!\n%s for '%s' config node\n", err_msg,
-	       fit_get_name(fit, conf_noffset, NULL));
+	printf(" error!\n%s for '%s' config node\n",
+	       err_msg, fit_get_name(fit, conf_noffset, NULL));
 	return -EPERM;
 }
 
@@ -659,8 +663,8 @@ static int fit_config_verify_required_keys(const void *fit, int conf_noffset,
 		const char *required;
 		int ret;
 
-		required =
-			fdt_getprop(key_blob, noffset, FIT_KEY_REQUIRED, NULL);
+		required = fdt_getprop(key_blob, noffset, FIT_KEY_REQUIRED,
+				       NULL);
 		if (!required || strcmp(required, "conf"))
 			continue;
 
