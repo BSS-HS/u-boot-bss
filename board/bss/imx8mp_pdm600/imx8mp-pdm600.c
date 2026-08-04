@@ -205,7 +205,7 @@ int board_late_init(void)
 	if (spi != 0 && spi != PHYTEC_EEPROM_INVAL)
 		env_set("spiprobe", "sf probe");
 
-	// setup_board_revisions();
+	setup_board_revisions();
 
 	setup_boot_device();
 
