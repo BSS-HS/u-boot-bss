@@ -1,4 +1,4 @@
-BSS PDM600 (PHYTEC phyCORE-i.MX8MP SOM)
+BSS PDM-600 (PHYTEC phyCORE-i.MX8MP SOM)
 S:      Maintained
 F:      arch/arm/dts/imx8mp-bss-pdm600.dts
 F:      arch/arm/dts/imx8mp-bss-pdm600-u-boot.dtsi
