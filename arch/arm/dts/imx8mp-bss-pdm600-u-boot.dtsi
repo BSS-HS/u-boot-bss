@@ -25,6 +25,12 @@
 				    <&gpio_expander_power 3 GPIO_ACTIVE_HIGH>,
 				    <&gpio_expander_power 4 GPIO_ACTIVE_HIGH>;
 
+	mp-card-revision-gpios = <&gpio_expander_mp 0 GPIO_ACTIVE_HIGH>,
+				   <&gpio_expander_mp 1 GPIO_ACTIVE_HIGH>,
+				   <&gpio_expander_mp 2 GPIO_ACTIVE_HIGH>,
+				   <&gpio_expander_mp 3 GPIO_ACTIVE_HIGH>,
+				   <&gpio_expander_mp 4 GPIO_ACTIVE_HIGH>;
+
 	wdt-reboot {
 		compatible = "wdt-reboot";
 		wdt = <&wdog1>;

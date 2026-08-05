@@ -17,11 +17,12 @@
 
 	/* 
 	 * hardware revisions for software compatibility checks
-	 * these values should be set by u-boot depending on the detected hardware revision of the respective board (base, io card, power card)
+	 * these values should be set by u-boot depending on the detected hardware revision of the respective board (base, io card, power card, mp card)
 	*/
-    base_hardware_revision = <0x2>;
-    io_card_hardware_revision = <0x2>;
-    power_card_hardware_revision = <0x2>;
+    base_hardware_revision = <0x0>;
+    io_card_hardware_revision = <0x0>;
+    power_card_hardware_revision = <0x0>;
+	multi_purpose_card_revision = <0x0>;
 
 	chosen {
 		stdout-path = &uart1;

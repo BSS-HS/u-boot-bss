@@ -34,6 +34,7 @@ DECLARE_GLOBAL_DATA_PTR;
 static u32 base_hw_rev;
 static u32 io_card_hw_rev;
 static u32 power_card_hw_rev;
+static u32 mp_card_hw_rev;
 
 /**
  * read_revision_gpios() - Read a board/carrier-card revision code
@@ -84,6 +85,7 @@ static void setup_board_revisions(void)
 	base_hw_rev = read_revision_gpios("base-revision-gpios");
 	io_card_hw_rev = read_revision_gpios("io-card-revision-gpios");
 	power_card_hw_rev = read_revision_gpios("power-card-revision-gpios");
+	mp_card_hw_rev = read_revision_gpios("mp-card-revision-gpios");
 
 	/*
 	 * Expose the revisions as env vars, so the bootscript can select
@@ -92,6 +94,7 @@ static void setup_board_revisions(void)
 	env_set_hex("base_hw_rev", base_hw_rev);
 	env_set_hex("io_card_hw_rev", io_card_hw_rev);
 	env_set_hex("power_card_hw_rev", power_card_hw_rev);
+	env_set_hex("mp_card_hw_rev", mp_card_hw_rev);
 }
 
 int ft_board_setup(void *blob, struct bd_info *bd)
@@ -102,6 +105,7 @@ int ft_board_setup(void *blob, struct bd_info *bd)
 	fdt_setprop_u32(blob, 0, "io_card_hardware_revision", io_card_hw_rev);
 	fdt_setprop_u32(blob, 0, "power_card_hardware_revision",
 			power_card_hw_rev);
+	fdt_setprop_u32(blob, 0, "multi_purpose_card_revision", mp_card_hw_rev);
 
 	/* Do nothing more if no SPI is populated */
 	if (!spi)
