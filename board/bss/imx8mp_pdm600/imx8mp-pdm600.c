@@ -11,6 +11,7 @@
 #include <env.h>
 #include <init.h>
 #include <fdt_support.h>
+#include <fuse.h>
 #include <jffs2/load_kernel.h>
 #include <miiphy.h>
 #include <mtd_node.h>
@@ -202,6 +203,27 @@ static void setup_boot_device(void)
 	}
 }
 
+/*
+ * Derive a systemd machine-id (32 lowercase hex chars) from the SoC's OCOTP
+ */
+static void setup_machine_id(void)
+{
+	u32 uid_low, uid_high;
+	char machine_id[33];
+
+	if (env_get("machineid"))
+		return;
+
+	if (fuse_read(0, 2, &uid_low) || fuse_read(0, 3, &uid_high)) {
+		printf("%s: failed to read SoC unique ID fuses\n", __func__);
+		return;
+	}
+
+	snprintf(machine_id, sizeof(machine_id), "%032llx",
+		 ((u64)uid_high << 32) | uid_low);
+	env_set("machineid", machine_id);
+}
+
 int board_late_init(void)
 {
 	u8 spi = phytec_get_imx8m_spi(NULL);
@@ -212,6 +234,8 @@ int board_late_init(void)
 	setup_board_revisions();
 
 	setup_boot_device();
+
+	setup_machine_id();
 
 	return 0;
 }
