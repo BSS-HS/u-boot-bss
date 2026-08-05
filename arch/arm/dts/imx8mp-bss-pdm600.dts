@@ -165,7 +165,6 @@
         };
     };
 
-
 	reg_usdhc2_vmmc: regulator-usdhc2 {
 		compatible = "regulator-fixed";
 		pinctrl-names = "default";
@@ -202,7 +201,7 @@
         regulator-min-microvolt = <5000000>; /* 5V */
         regulator-max-microvolt = <5000000>;
         gpio = <&gpio_expander_power 10 GPIO_ACTIVE_LOW>;
-		regulator-boot-on;
+		regulator-always-on;
 		startup-delay-us = <20000>;
     };
 
@@ -213,7 +212,7 @@
         regulator-min-microvolt = <5000000>; /* |-5V| = 5V */
         regulator-max-microvolt = <5000000>;
         gpio = <&gpio_expander_power 9 GPIO_ACTIVE_LOW>;
-		regulator-boot-on;
+		regulator-always-on;
 		startup-delay-us = <100>;
 
 		// only to avoid that the -5 V is enabled before the +5 V is enabled, which would causes problems
@@ -226,7 +225,7 @@
         regulator-min-microvolt = <21000000>; /* 21V = 21.000.000 uV */
         regulator-max-microvolt = <21000000>;
         gpio = <&gpio_expander_power 8 GPIO_ACTIVE_LOW>;
-		regulator-boot-on;
+		regulator-always-on;
 		startup-delay-us = <100>;
     };
 
@@ -425,6 +424,7 @@
     gpio-line-names = "", "", "", "", "", "", "", "", "", "",
                     "", "", "", "", "", "",
                     "", "CARD-MUX-A0", "CARD-MUX-A1";
+    status = "disabled";
 };
 
 &uart3 {
