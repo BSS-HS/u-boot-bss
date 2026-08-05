@@ -201,8 +201,7 @@
         regulator-min-microvolt = <5000000>; /* 5V */
         regulator-max-microvolt = <5000000>;
         gpio = <&gpio_expander_power 10 GPIO_ACTIVE_LOW>;
-		regulator-always-on;
-		startup-delay-us = <20000>;
+		startup-delay-us = <10>;
     };
 
     reg_vcc_5v_neg: regulator-vcc-5v-neg {
@@ -212,7 +211,6 @@
         regulator-min-microvolt = <5000000>; /* |-5V| = 5V */
         regulator-max-microvolt = <5000000>;
         gpio = <&gpio_expander_power 9 GPIO_ACTIVE_LOW>;
-		regulator-always-on;
 		startup-delay-us = <100>;
 
 		// only to avoid that the -5 V is enabled before the +5 V is enabled, which would causes problems
@@ -225,9 +223,16 @@
         regulator-min-microvolt = <21000000>; /* 21V = 21.000.000 uV */
         regulator-max-microvolt = <21000000>;
         gpio = <&gpio_expander_power 8 GPIO_ACTIVE_LOW>;
-		regulator-always-on;
 		startup-delay-us = <100>;
+
+		// only to chain the +21 V supply after the -5 V (and thus +5 V) supply on enable, reverse on disable
+		vin-supply = <&reg_vcc_5v_neg>;
     };
+
+	mcore-analog-supply {
+		compatible = "regulator-output";
+		vout-supply = <&reg_vcc_21v_pos>;
+	};
 
     reg_vref_adc: regulator-vref-adc {
         compatible = "regulator-fixed";
@@ -419,6 +424,14 @@
 	bus-width = <4>;
 	status = "okay";
 };
+
+
+&i2c1 {
+    pinctrl-names = "default";
+    /delete-property/ sda-gpios;
+    /delete-property/ scl-gpios;
+};
+
 
 &gpio5 {
     gpio-line-names = "", "", "", "", "", "", "", "", "", "",
