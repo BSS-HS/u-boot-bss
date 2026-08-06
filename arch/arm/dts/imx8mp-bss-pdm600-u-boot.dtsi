@@ -108,6 +108,7 @@
 };
 
 &gpio5 {
+	status = "okay";
 	bootph-pre-ram;
 };
 
