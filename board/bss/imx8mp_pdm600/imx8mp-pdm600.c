@@ -226,6 +226,12 @@ static void setup_machine_id(void)
 
 int board_late_init(void)
 {
+#ifdef CONFIG_SILENT_CONSOLE
+	gd->flags |= GD_FLG_SILENT;
+	env_set("silent", "1");
+	env_set("console", "ttynull");
+#endif
+
 	u8 spi = phytec_get_imx8m_spi(NULL);
 
 	if (spi != 0 && spi != PHYTEC_EEPROM_INVAL)

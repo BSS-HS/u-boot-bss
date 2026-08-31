@@ -68,13 +68,15 @@ binman_sym_declare(ulong, u_boot_vpl_any, size);
 #endif /* BINMAN_UBOOT_SYMBOLS */
 
 /* Define board data structure */
-static struct bd_info bdata __attribute__ ((section(".data")));
+static struct bd_info bdata __attribute__((section(".data")));
 
 #if CONFIG_IS_ENABLED(SHOW_BOOT_PROGRESS)
 /*
  * Board-specific Platform code can reimplement show_boot_progress () if needed
  */
-__weak void show_boot_progress(int val) {}
+__weak void show_boot_progress(int val)
+{
+}
 #endif
 
 #if defined(CONFIG_SPL_OS_BOOT) || CONFIG_IS_ENABLED(HANDOFF) || \
@@ -111,12 +113,13 @@ __weak int spl_start_uboot(void)
  */
 int __weak bootz_setup(ulong image, ulong *start, ulong *end)
 {
-	 return 1;
+	return 1;
 }
 
-int __weak booti_setup(ulong image, ulong *relocated_addr, ulong *size, bool force_reloc)
+int __weak booti_setup(ulong image, ulong *relocated_addr, ulong *size,
+		       bool force_reloc)
 {
-	 return 1;
+	return 1;
 }
 #endif
 
@@ -207,8 +210,8 @@ ulong spl_get_image_size(void)
 		return binman_sym(ulong, u_boot_vpl_any, size);
 #endif
 	return xpl_next_phase() == PHASE_SPL ?
-		binman_sym(ulong, u_boot_spl_any, size) :
-		binman_sym(ulong, u_boot_any, size);
+		       binman_sym(ulong, u_boot_spl_any, size) :
+		       binman_sym(ulong, u_boot_any, size);
 }
 
 ulong spl_get_image_text_base(void)
@@ -218,7 +221,7 @@ ulong spl_get_image_text_base(void)
 		return CONFIG_VPL_TEXT_BASE;
 #endif
 	return xpl_next_phase() == PHASE_SPL ? CONFIG_SPL_TEXT_BASE :
-		CONFIG_TEXT_BASE;
+					       CONFIG_TEXT_BASE;
 }
 
 /*
@@ -419,7 +422,8 @@ static int setup_spl_handoff(void)
 {
 	struct spl_handoff *ho;
 
-	ho = bloblist_ensure(BLOBLISTT_U_BOOT_SPL_HANDOFF, sizeof(struct spl_handoff));
+	ho = bloblist_ensure(BLOBLISTT_U_BOOT_SPL_HANDOFF,
+			     sizeof(struct spl_handoff));
 	if (!ho)
 		return -ENOENT;
 
@@ -436,7 +440,8 @@ static int write_spl_handoff(void)
 	struct spl_handoff *ho;
 	int ret;
 
-	ho = bloblist_find(BLOBLISTT_U_BOOT_SPL_HANDOFF, sizeof(struct spl_handoff));
+	ho = bloblist_find(BLOBLISTT_U_BOOT_SPL_HANDOFF,
+			   sizeof(struct spl_handoff));
 	if (!ho)
 		return -ENOENT;
 	handoff_save_dram(ho);
@@ -448,8 +453,14 @@ static int write_spl_handoff(void)
 	return 0;
 }
 #else
-static inline int setup_spl_handoff(void) { return 0; }
-static inline int write_spl_handoff(void) { return 0; }
+static inline int setup_spl_handoff(void)
+{
+	return 0;
+}
+static inline int write_spl_handoff(void)
+{
+	return 0;
+}
 
 #endif /* HANDOFF */
 
@@ -557,7 +568,7 @@ int spl_init(void)
 {
 	int ret;
 	bool setup_malloc = !(IS_ENABLED(CONFIG_SPL_STACK_R) &&
-			IS_ENABLED(CONFIG_SPL_SYS_MALLOC_SIMPLE));
+			      IS_ENABLED(CONFIG_SPL_SYS_MALLOC_SIMPLE));
 
 	debug("%s\n", __func__);
 
@@ -672,11 +683,8 @@ static int boot_from_devices(struct spl_image_info *spl_image,
 void board_init_r(gd_t *dummy1, ulong dummy2)
 {
 	u32 spl_boot_list[] = {
-		BOOT_DEVICE_NONE,
-		BOOT_DEVICE_NONE,
-		BOOT_DEVICE_NONE,
-		BOOT_DEVICE_NONE,
-		BOOT_DEVICE_NONE,
+		BOOT_DEVICE_NONE, BOOT_DEVICE_NONE, BOOT_DEVICE_NONE,
+		BOOT_DEVICE_NONE, BOOT_DEVICE_NONE,
 	};
 	spl_jump_to_image_t jumper = &jump_to_image;
 	struct spl_image_info spl_image;
@@ -758,10 +766,12 @@ void board_init_r(gd_t *dummy1, ulong dummy2)
 				ARRAY_SIZE(spl_boot_list));
 	if (ret) {
 		if (CONFIG_IS_ENABLED(SHOW_ERRORS))
-			printf(PHASE_PROMPT "failed to boot from all boot devices (err=%d)\n",
+			printf(PHASE_PROMPT
+			       "failed to boot from all boot devices (err=%d)\n",
 			       ret);
 		else
-			puts(PHASE_PROMPT "failed to boot from all boot devices\n");
+			puts(PHASE_PROMPT
+			     "failed to boot from all boot devices\n");
 		hang();
 	}
 
@@ -797,8 +807,8 @@ void board_init_r(gd_t *dummy1, ulong dummy2)
 	}
 	if (CONFIG_IS_ENABLED(SYS_MALLOC_F) &&
 	    !IS_ENABLED(CONFIG_SPL_SYS_MALLOC_SIZE))
-		debug("SPL malloc() used 0x%x bytes (%d KB)\n",
-		      gd_malloc_ptr(), gd_malloc_ptr() / 1024);
+		debug("SPL malloc() used 0x%x bytes (%d KB)\n", gd_malloc_ptr(),
+		      gd_malloc_ptr() / 1024);
 
 	bootstage_mark_name(get_bootstage_id(false), "end phase");
 	ret = bootstage_stash_default();
@@ -821,13 +831,15 @@ void board_init_r(gd_t *dummy1, ulong dummy2)
 		ret = write_spl_handoff();
 		if (ret)
 			printf(PHASE_PROMPT
-			       "SPL hand-off write failed (err=%d)\n", ret);
+			       "SPL hand-off write failed (err=%d)\n",
+			       ret);
 	}
 	if (CONFIG_IS_ENABLED(UPL_OUT) && (gd->flags & GD_FLG_UPL)) {
 		ret = spl_write_upl_handoff(&spl_image);
 		if (ret) {
 			printf(PHASE_PROMPT
-			       "UPL hand-off write failed (err=%d)\n", ret);
+			       "UPL hand-off write failed (err=%d)\n",
+			       ret);
 			hang();
 		}
 	}
@@ -863,13 +875,17 @@ void preloader_console_init(void)
 #if CONFIG_IS_ENABLED(SERIAL)
 	gd->baudrate = CONFIG_BAUDRATE;
 
-	serial_init();		/* serial communications setup */
+	serial_init(); /* serial communications setup */
 
 	gd->flags |= GD_FLG_HAVE_CONSOLE;
 
+#if CONFIG_IS_ENABLED(SILENT_CONSOLE)
+	gd->flags |= GD_FLG_SILENT;
+#endif
+
 #if CONFIG_IS_ENABLED(BANNER_PRINT)
-	puts("\nU-Boot " PHASE_NAME " " PLAIN_VERSION " (" U_BOOT_DATE " - "
-	     U_BOOT_TIME " " U_BOOT_TZ ")\n");
+	puts("\nU-Boot " PHASE_NAME " " PLAIN_VERSION " (" U_BOOT_DATE
+	     " - " U_BOOT_TIME " " U_BOOT_TZ ")\n");
 #endif
 #ifdef CONFIG_SPL_DISPLAY_PRINT
 	spl_display_print();
@@ -956,8 +972,9 @@ ulong spl_relocate_stack_gd(void)
 #endif
 }
 
-#if defined(CONFIG_BOOTCOUNT_LIMIT) && \
-	((!defined(CONFIG_TPL_BUILD) && !defined(CONFIG_SPL_BOOTCOUNT_LIMIT)) || \
+#if defined(CONFIG_BOOTCOUNT_LIMIT) &&             \
+	((!defined(CONFIG_TPL_BUILD) &&            \
+	  !defined(CONFIG_SPL_BOOTCOUNT_LIMIT)) || \
 	 (defined(CONFIG_TPL_BUILD) && !defined(CONFIG_TPL_BOOTCOUNT_LIMIT)))
 void bootcount_store(ulong a)
 {
